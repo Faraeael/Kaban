@@ -224,332 +224,162 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     try {
       final selectedWalletId = _session.selectedWallets[messageId];
       switch (action) {
-      case LogTransactionAction a:
-        final wallets = ref.read(walletListProvider);
-        final vis = wallets.where((w) => !w.archived).toList();
-        final wallet = selectedWalletId != null
-            ? (vis.where((w) => w.id == selectedWalletId).firstOrNull ??
-                vis.firstOrNull)
-            : (a.walletName != null
-                ? (vis.where((w) {
-                      final q = a.walletName!.trim().toLowerCase();
-                      final name = w.name.toLowerCase();
-                      return name == q || name.contains(q);
-                    }).firstOrNull ??
-                    vis.firstOrNull)
-                : vis.firstOrNull);
-        if (wallet == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Add a wallet first, then log the transaction.')),
-          );
-          return;
-        }
-        final txn = Transaction(
-          id: _uuid.v4(),
-          amount: a.amount,
-          type: a.isIncome ? TransactionType.income : TransactionType.expense,
-          category: a.category,
-          note: a.note,
-          date: DateTime.now(),
-          walletId: wallet.id,
-        );
-        await ref.read(transactionListProvider.notifier).add(txn);
-      case UpdateDebtBalanceAction a:
-        final debts = ref.read(debtListProvider);
-        final query = a.debtName.trim().toLowerCase();
-        Debt? target;
-        for (final d in debts) {
-          if (d.name.toLowerCase() == query ||
-              d.name.toLowerCase().contains(query)) {
-            target = d;
-            break;
-          }
-        }
-        if (target == null) {
-          // C3 fix: never silently substitute another debt. If the user said
-          // "pay my BDO card" and there's no BDO debt, ask them what to do.
-          if (debts.isEmpty) {
+        case LogTransactionAction a:
+          final wallets = ref.read(walletListProvider);
+          final vis = wallets.where((w) => !w.archived).toList();
+          final wallet = selectedWalletId != null
+              ? (vis.where((w) => w.id == selectedWalletId).firstOrNull ??
+                  vis.firstOrNull)
+              : (a.walletName != null
+                  ? (vis.where((w) {
+                        final q = a.walletName!.trim().toLowerCase();
+                        final name = w.name.toLowerCase();
+                        return name == q || name.contains(q);
+                      }).firstOrNull ??
+                      vis.firstOrNull)
+                  : vis.firstOrNull);
+          if (wallet == null) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                  content: Text('Add a debt first, then update its balance.')),
-            );
-          } else {
-            final names = debts.map((d) => d.name).join(', ');
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
                   content:
-                      Text('No debt named "${a.debtName}". You have: $names.')),
+                      Text('Add a wallet first, then log the transaction.')),
             );
+            return;
           }
-          return;
-        }
-        final debt = target;
-        var next = debt.copyWith(
-          balance: (debt.balance - a.amount).clamp(0, double.infinity),
-        );
-        if (debt.schedule == DebtSchedule.fixed) {
-          final current = debt.remainingPayments ?? 1;
-          final remaining = (current - 1).clamp(0, 9999);
-          if (remaining == 0) {
-            next = next.copyWith(
-              paidOff: true,
-              schedule: DebtSchedule.none,
-              clearDueDay: true,
-              clearRemainingPayments: true,
-            );
-          } else {
-            next = next.copyWith(remainingPayments: remaining);
-          }
-        }
-        await ref.read(debtListProvider.notifier).update(next);
-        final wallets = ref.read(walletListProvider);
-        final vis = wallets.where((w) => !w.archived).toList();
-        final payingWallet = selectedWalletId != null
-            ? vis.where((w) => w.id == selectedWalletId).firstOrNull
-            : (debt.linkedWalletId != null
-                ? vis.where((w) => w.id == debt.linkedWalletId).firstOrNull
-                : (a.walletName != null
-                    ? (vis.where((w) {
-                          final q = a.walletName!.trim().toLowerCase();
-                          return w.name.toLowerCase() == q ||
-                              w.name.toLowerCase().contains(q);
-                        }).firstOrNull ??
-                        vis.firstOrNull)
-                    : vis.firstOrNull));
-        if (payingWallet != null) {
           final txn = Transaction(
             id: _uuid.v4(),
             amount: a.amount,
-            type: TransactionType.expense,
-            category: 'Debt Payment',
-            note: 'Payment to ${debt.name}',
+            type: a.isIncome ? TransactionType.income : TransactionType.expense,
+            category: a.category,
+            note: a.note,
             date: DateTime.now(),
-            walletId: payingWallet.id,
+            walletId: wallet.id,
           );
           await ref.read(transactionListProvider.notifier).add(txn);
-        }
-      case UpdateDebtAction a:
-        final debts = ref.read(debtListProvider);
-        final query = a.name.trim().toLowerCase();
-        final target = debts
-            .where((d) =>
-                d.name.toLowerCase() == query ||
-                d.name.toLowerCase().contains(query))
-            .firstOrNull;
-        if (target == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No debt named "${a.name}".')),
-          );
-          return;
-        }
-        final updated = target.copyWith(
-          name: a.newName ?? target.name,
-          balance: a.newBalance ?? target.balance,
-          paidOff: (a.newBalance != null && a.newBalance! > 0)
-              ? false
-              : target.paidOff,
-          apr: a.newApr ?? target.apr,
-          minPayment: a.newMinPayment ?? target.minPayment,
-          schedule: a.newSchedule ?? target.schedule,
-          dueDay: a.newDueDay ?? target.dueDay,
-          remainingPayments: a.newRemainingPayments ?? target.remainingPayments,
-          billingDay: a.newBillingDay ?? target.billingDay,
-          graceDays: a.newGraceDays ?? target.graceDays,
-        );
-        await ref.read(debtListProvider.notifier).update(updated);
-      case DeleteDebtAction a:
-        final debts = ref.read(debtListProvider);
-        final query = a.name.trim().toLowerCase();
-        final target = debts
-            .where((d) =>
-                d.name.toLowerCase() == query ||
-                d.name.toLowerCase().contains(query))
-            .firstOrNull;
-        if (target == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No debt named "${a.name}".')),
-          );
-          return;
-        }
-        final ok = await showDialog<bool>(
-          context: context,
-          builder: (dialogCtx) => AlertDialog(
-            title: Text('Delete "${target.name}"?'),
-            content: const Text('This removes this debt. Cannot be undone.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogCtx, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.error),
-                onPressed: () => Navigator.pop(dialogCtx, true),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
-        );
-        if (ok ?? false) {
-          await ref.read(debtListProvider.notifier).delete(target.id);
-        } else {
-          return;
-        }
-      case AddToGoalAction a:
-        final goals = ref.read(goalListProvider);
-        final query = a.goalName.trim().toLowerCase();
-        Goal? target;
-        for (final g in goals) {
-          if (g.name.toLowerCase() == query ||
-              g.name.toLowerCase().contains(query)) {
-            target = g;
-            break;
+        case UpdateDebtBalanceAction a:
+          final debts = ref.read(debtListProvider);
+          final query = a.debtName.trim().toLowerCase();
+          Debt? target;
+          for (final d in debts) {
+            if (d.name.toLowerCase() == query ||
+                d.name.toLowerCase().contains(query)) {
+              target = d;
+              break;
+            }
           }
-        }
-        if (target == null) {
-          if (goals.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Add a goal first, then add to it.')),
-            );
-          } else {
-            final names = goals.map((g) => g.name).join(', ');
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  content:
-                      Text('No goal named "${a.goalName}". You have: $names.')),
-            );
+          if (target == null) {
+            // C3 fix: never silently substitute another debt. If the user said
+            // "pay my BDO card" and there's no BDO debt, ask them what to do.
+            if (debts.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content:
+                        Text('Add a debt first, then update its balance.')),
+              );
+            } else {
+              final names = debts.map((d) => d.name).join(', ');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                    content: Text(
+                        'No debt named "${a.debtName}". You have: $names.')),
+              );
+            }
+            return;
           }
-          return;
-        }
-        final next = target.copyWith(saved: target.saved + a.amount);
-        await ref.read(goalListProvider.notifier).update(next);
-        if (selectedWalletId != null) {
+          final debt = target;
+          var next = debt.copyWith(
+            balance: (debt.balance - a.amount).clamp(0, double.infinity),
+          );
+          if (debt.schedule == DebtSchedule.fixed) {
+            final current = debt.remainingPayments ?? 1;
+            final remaining = (current - 1).clamp(0, 9999);
+            if (remaining == 0) {
+              next = next.copyWith(
+                paidOff: true,
+                schedule: DebtSchedule.none,
+                clearDueDay: true,
+                clearRemainingPayments: true,
+              );
+            } else {
+              next = next.copyWith(remainingPayments: remaining);
+            }
+          }
+          await ref.read(debtListProvider.notifier).update(next);
           final wallets = ref.read(walletListProvider);
-          final wallet =
-              wallets.where((w) => w.id == selectedWalletId).firstOrNull;
-          if (wallet != null) {
+          final vis = wallets.where((w) => !w.archived).toList();
+          final payingWallet = selectedWalletId != null
+              ? vis.where((w) => w.id == selectedWalletId).firstOrNull
+              : (debt.linkedWalletId != null
+                  ? vis.where((w) => w.id == debt.linkedWalletId).firstOrNull
+                  : (a.walletName != null
+                      ? (vis.where((w) {
+                            final q = a.walletName!.trim().toLowerCase();
+                            return w.name.toLowerCase() == q ||
+                                w.name.toLowerCase().contains(q);
+                          }).firstOrNull ??
+                          vis.firstOrNull)
+                      : vis.firstOrNull));
+          if (payingWallet != null) {
             final txn = Transaction(
               id: _uuid.v4(),
               amount: a.amount,
               type: TransactionType.expense,
-              category: 'Other',
-              note: 'Contribution to ${target.name}',
+              category: 'Debt Payment',
+              note: 'Payment to ${debt.name}',
               date: DateTime.now(),
-              walletId: wallet.id,
+              walletId: payingWallet.id,
             );
             await ref.read(transactionListProvider.notifier).add(txn);
           }
-        }
-      case CreateDebtAction a:
-        final debtToAdd = a.debt.copyWith(id: _uuid.v4());
-        await ref.read(debtListProvider.notifier).add(debtToAdd);
-        _session.recentlyCreatedDebtNames.add(debtToAdd.name.toLowerCase().trim());
-      case CreateGoalAction a:
-        final goalToAdd = a.goal.copyWith(id: _uuid.v4());
-        await ref.read(goalListProvider.notifier).add(goalToAdd);
-      case UpdateGoalAction a:
-        final goals = ref.read(goalListProvider);
-        final query = a.name.trim().toLowerCase();
-        final target = goals
-            .where((g) =>
-                g.name.toLowerCase() == query ||
-                g.name.toLowerCase().contains(query))
-            .firstOrNull;
-        if (target == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No goal named "${a.name}".')),
+        case UpdateDebtAction a:
+          final debts = ref.read(debtListProvider);
+          final query = a.name.trim().toLowerCase();
+          final target = debts
+              .where((d) =>
+                  d.name.toLowerCase() == query ||
+                  d.name.toLowerCase().contains(query))
+              .firstOrNull;
+          if (target == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('No debt named "${a.name}".')),
+            );
+            return;
+          }
+          final updated = target.copyWith(
+            name: a.newName ?? target.name,
+            balance: a.newBalance ?? target.balance,
+            paidOff: (a.newBalance != null && a.newBalance! > 0)
+                ? false
+                : target.paidOff,
+            apr: a.newApr ?? target.apr,
+            minPayment: a.newMinPayment ?? target.minPayment,
+            schedule: a.newSchedule ?? target.schedule,
+            dueDay: a.newDueDay ?? target.dueDay,
+            remainingPayments:
+                a.newRemainingPayments ?? target.remainingPayments,
+            billingDay: a.newBillingDay ?? target.billingDay,
+            graceDays: a.newGraceDays ?? target.graceDays,
           );
-          return;
-        }
-        final updated = target.copyWith(
-          name: a.newName ?? target.name,
-          target: a.newTarget ?? target.target,
-          saved: a.newSaved ?? target.saved,
-        );
-        await ref.read(goalListProvider.notifier).update(updated);
-      case DeleteGoalAction a:
-        final goals = ref.read(goalListProvider);
-        final query = a.name.trim().toLowerCase();
-        final target = goals
-            .where((g) =>
-                g.name.toLowerCase() == query ||
-                g.name.toLowerCase().contains(query))
-            .firstOrNull;
-        if (target == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No goal named "${a.name}".')),
-          );
-          return;
-        }
-        final ok = await showDialog<bool>(
-          context: context,
-          builder: (dialogCtx) => AlertDialog(
-            title: Text('Delete "${target.name}"?'),
-            content: const Text('This removes this goal. Cannot be undone.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogCtx, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.error),
-                onPressed: () => Navigator.pop(dialogCtx, true),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
-        );
-        if (ok ?? false) {
-          await ref.read(goalListProvider.notifier).delete(target.id);
-        } else {
-          return;
-        }
-      case CreateRecurringAction a:
-        final wallets = ref.read(walletListProvider);
-        final vis = wallets.where((w) => !w.archived).toList();
-        if (vis.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'Add a wallet first, then create the recurring entry.')),
-          );
-          return;
-        }
-        final wallet = selectedWalletId != null
-            ? (vis.where((w) => w.id == selectedWalletId).firstOrNull ??
-                vis.first)
-            : vis.first;
-        final entry = a.recurring.copyWith(
-          id: _uuid.v4(),
-          walletId: wallet.id,
-          nextDue: DateTime.now(),
-        );
-        await ref.read(recurringListProvider.notifier).add(entry);
-      case UpdateRecurringAction a:
-        final recurring = ref.read(recurringListProvider);
-        final query = a.name.trim().toLowerCase();
-        final target = recurring
-            .where((r) =>
-                r.name.toLowerCase() == query ||
-                r.name.toLowerCase().contains(query))
-            .firstOrNull;
-        if (target == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('No recurring transaction named "${a.name}".')),
-          );
-          return;
-        }
-        if (a.delete) {
+          await ref.read(debtListProvider.notifier).update(updated);
+        case DeleteDebtAction a:
+          final debts = ref.read(debtListProvider);
+          final query = a.name.trim().toLowerCase();
+          final target = debts
+              .where((d) =>
+                  d.name.toLowerCase() == query ||
+                  d.name.toLowerCase().contains(query))
+              .firstOrNull;
+          if (target == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('No debt named "${a.name}".')),
+            );
+            return;
+          }
           final ok = await showDialog<bool>(
             context: context,
             builder: (dialogCtx) => AlertDialog(
               title: Text('Delete "${target.name}"?'),
-              content: const Text(
-                  'This removes this recurring transaction. Cannot be undone.'),
+              content: const Text('This removes this debt. Cannot be undone.'),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dialogCtx, false),
@@ -565,163 +395,337 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
             ),
           );
           if (ok ?? false) {
-            await ref.read(recurringListProvider.notifier).delete(target.id);
+            await ref.read(debtListProvider.notifier).delete(target.id);
           } else {
             return;
           }
-        } else {
-          int? intervalDays;
-          if (a.newFrequency != null) {
-            intervalDays = switch (a.newFrequency!.toLowerCase()) {
-              'day' || 'daily' => 1,
-              'week' || 'weekly' => 7,
-              'bi-weekly' || 'biweekly' || 'fortnight' => 14,
-              'year' || 'yearly' => 365,
-              _ => 30,
-            };
+        case AddToGoalAction a:
+          final goals = ref.read(goalListProvider);
+          final query = a.goalName.trim().toLowerCase();
+          Goal? target;
+          for (final g in goals) {
+            if (g.name.toLowerCase() == query ||
+                g.name.toLowerCase().contains(query)) {
+              target = g;
+              break;
+            }
+          }
+          if (target == null) {
+            if (goals.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Add a goal first, then add to it.')),
+              );
+            } else {
+              final names = goals.map((g) => g.name).join(', ');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                    content: Text(
+                        'No goal named "${a.goalName}". You have: $names.')),
+              );
+            }
+            return;
+          }
+          final next = target.copyWith(saved: target.saved + a.amount);
+          await ref.read(goalListProvider.notifier).update(next);
+          if (selectedWalletId != null) {
+            final wallets = ref.read(walletListProvider);
+            final wallet =
+                wallets.where((w) => w.id == selectedWalletId).firstOrNull;
+            if (wallet != null) {
+              final txn = Transaction(
+                id: _uuid.v4(),
+                amount: a.amount,
+                type: TransactionType.expense,
+                category: 'Other',
+                note: 'Contribution to ${target.name}',
+                date: DateTime.now(),
+                walletId: wallet.id,
+              );
+              await ref.read(transactionListProvider.notifier).add(txn);
+            }
+          }
+        case CreateDebtAction a:
+          final debtToAdd = a.debt.copyWith(id: _uuid.v4());
+          await ref.read(debtListProvider.notifier).add(debtToAdd);
+          _session.recentlyCreatedDebtNames
+              .add(debtToAdd.name.toLowerCase().trim());
+        case CreateGoalAction a:
+          final goalToAdd = a.goal.copyWith(id: _uuid.v4());
+          await ref.read(goalListProvider.notifier).add(goalToAdd);
+        case UpdateGoalAction a:
+          final goals = ref.read(goalListProvider);
+          final query = a.name.trim().toLowerCase();
+          final target = goals
+              .where((g) =>
+                  g.name.toLowerCase() == query ||
+                  g.name.toLowerCase().contains(query))
+              .firstOrNull;
+          if (target == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('No goal named "${a.name}".')),
+            );
+            return;
           }
           final updated = target.copyWith(
-            amount: a.newAmount ?? target.amount,
-            intervalDays: intervalDays ?? target.intervalDays,
-            enabled: a.newEnabled ?? target.enabled,
+            name: a.newName ?? target.name,
+            target: a.newTarget ?? target.target,
+            saved: a.newSaved ?? target.saved,
           );
-          await ref.read(recurringListProvider.notifier).update(updated);
-        }
-      case CreateWalletAction a:
-        WalletPreset? preset;
-        for (final p in kWalletPresets) {
-          if (p.name.toLowerCase() == a.name.toLowerCase()) {
-            preset = p;
-            break;
+          await ref.read(goalListProvider.notifier).update(updated);
+        case DeleteGoalAction a:
+          final goals = ref.read(goalListProvider);
+          final query = a.name.trim().toLowerCase();
+          final target = goals
+              .where((g) =>
+                  g.name.toLowerCase() == query ||
+                  g.name.toLowerCase().contains(query))
+              .firstOrNull;
+          if (target == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('No goal named "${a.name}".')),
+            );
+            return;
           }
-        }
-        final Wallet wallet;
-        if (preset != null) {
-          wallet = preset.toWallet(_uuid.v4());
-        } else {
-          final type = a.name.toLowerCase().contains('card')
-              ? WalletType.credit
-              : WalletType.ewallet;
-          wallet = Wallet(
+          final ok = await showDialog<bool>(
+            context: context,
+            builder: (dialogCtx) => AlertDialog(
+              title: Text('Delete "${target.name}"?'),
+              content: const Text('This removes this goal. Cannot be undone.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.error),
+                  onPressed: () => Navigator.pop(dialogCtx, true),
+                  child: const Text('Delete'),
+                ),
+              ],
+            ),
+          );
+          if (ok ?? false) {
+            await ref.read(goalListProvider.notifier).delete(target.id);
+          } else {
+            return;
+          }
+        case CreateRecurringAction a:
+          final wallets = ref.read(walletListProvider);
+          final vis = wallets.where((w) => !w.archived).toList();
+          if (vis.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text(
+                      'Add a wallet first, then create the recurring entry.')),
+            );
+            return;
+          }
+          final wallet = selectedWalletId != null
+              ? (vis.where((w) => w.id == selectedWalletId).firstOrNull ??
+                  vis.first)
+              : vis.first;
+          final entry = a.recurring.copyWith(
             id: _uuid.v4(),
-            name: a.name,
-            type: type,
-            startingBalance: a.startingBalance,
-            colorValue: type == WalletType.credit ? 0xFF7C3AED : 0xFF0D9488,
-            logoAsset: type == WalletType.credit
-                ? 'assets/logos/credit_card.svg'
-                : 'assets/logos/cash.svg',
+            walletId: wallet.id,
+            nextDue: DateTime.now(),
           );
-        }
-        final saved = a.startingBalance > 0
-            ? wallet.copyWith(startingBalance: a.startingBalance)
-            : wallet;
-        await ref.read(walletListProvider.notifier).add(saved);
-      case UpdateWalletAction a:
-        final wallets = ref.read(walletListProvider);
-        final query = a.name.trim().toLowerCase();
-        final target = wallets
-            .where((w) =>
-                w.name.toLowerCase() == query ||
-                w.name.toLowerCase().contains(query))
-            .firstOrNull;
-        if (target == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No wallet named "${a.name}".')),
+          await ref.read(recurringListProvider.notifier).add(entry);
+        case UpdateRecurringAction a:
+          final recurring = ref.read(recurringListProvider);
+          final query = a.name.trim().toLowerCase();
+          final target = recurring
+              .where((r) =>
+                  r.name.toLowerCase() == query ||
+                  r.name.toLowerCase().contains(query))
+              .firstOrNull;
+          if (target == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text('No recurring transaction named "${a.name}".')),
+            );
+            return;
+          }
+          if (a.delete) {
+            final ok = await showDialog<bool>(
+              context: context,
+              builder: (dialogCtx) => AlertDialog(
+                title: Text('Delete "${target.name}"?'),
+                content: const Text(
+                    'This removes this recurring transaction. Cannot be undone.'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogCtx, false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.error),
+                    onPressed: () => Navigator.pop(dialogCtx, true),
+                    child: const Text('Delete'),
+                  ),
+                ],
+              ),
+            );
+            if (ok ?? false) {
+              await ref.read(recurringListProvider.notifier).delete(target.id);
+            } else {
+              return;
+            }
+          } else {
+            int? intervalDays;
+            if (a.newFrequency != null) {
+              intervalDays = switch (a.newFrequency!.toLowerCase()) {
+                'day' || 'daily' => 1,
+                'week' || 'weekly' => 7,
+                'bi-weekly' || 'biweekly' || 'fortnight' => 14,
+                'year' || 'yearly' => 365,
+                _ => 30,
+              };
+            }
+            final updated = target.copyWith(
+              amount: a.newAmount ?? target.amount,
+              intervalDays: intervalDays ?? target.intervalDays,
+              enabled: a.newEnabled ?? target.enabled,
+            );
+            await ref.read(recurringListProvider.notifier).update(updated);
+          }
+        case CreateWalletAction a:
+          WalletPreset? preset;
+          for (final p in kWalletPresets) {
+            if (p.name.toLowerCase() == a.name.toLowerCase()) {
+              preset = p;
+              break;
+            }
+          }
+          final Wallet wallet;
+          if (preset != null) {
+            wallet = preset.toWallet(_uuid.v4());
+          } else {
+            final type = a.name.toLowerCase().contains('card')
+                ? WalletType.credit
+                : WalletType.ewallet;
+            wallet = Wallet(
+              id: _uuid.v4(),
+              name: a.name,
+              type: type,
+              startingBalance: a.startingBalance,
+              colorValue: type == WalletType.credit ? 0xFF7C3AED : 0xFF0D9488,
+              logoAsset: type == WalletType.credit
+                  ? 'assets/logos/credit_card.svg'
+                  : 'assets/logos/cash.svg',
+            );
+          }
+          final saved = a.startingBalance > 0
+              ? wallet.copyWith(startingBalance: a.startingBalance)
+              : wallet;
+          await ref.read(walletListProvider.notifier).add(saved);
+        case UpdateWalletAction a:
+          final wallets = ref.read(walletListProvider);
+          final query = a.name.trim().toLowerCase();
+          final target = wallets
+              .where((w) =>
+                  w.name.toLowerCase() == query ||
+                  w.name.toLowerCase().contains(query))
+              .firstOrNull;
+          if (target == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('No wallet named "${a.name}".')),
+            );
+            return;
+          }
+          final updated = target.copyWith(
+            name: a.newName ?? target.name,
+            startingBalance: a.newStartingBalance ?? target.startingBalance,
+            archived: a.unarchive ? false : target.archived,
           );
-          return;
-        }
-        final updated = target.copyWith(
-          name: a.newName ?? target.name,
-          startingBalance: a.newStartingBalance ?? target.startingBalance,
-          archived: a.unarchive ? false : target.archived,
-        );
-        await ref.read(walletListProvider.notifier).update(updated);
-      case ArchiveWalletAction a:
-        final wallets = ref.read(walletListProvider);
-        final query = a.name.trim().toLowerCase();
-        final target = wallets
-            .where((w) =>
-                w.name.toLowerCase() == query ||
-                w.name.toLowerCase().contains(query))
-            .firstOrNull;
-        if (target == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No wallet named "${a.name}".')),
+          await ref.read(walletListProvider.notifier).update(updated);
+        case ArchiveWalletAction a:
+          final wallets = ref.read(walletListProvider);
+          final query = a.name.trim().toLowerCase();
+          final target = wallets
+              .where((w) =>
+                  w.name.toLowerCase() == query ||
+                  w.name.toLowerCase().contains(query))
+              .firstOrNull;
+          if (target == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('No wallet named "${a.name}".')),
+            );
+            return;
+          }
+          await ref
+              .read(walletListProvider.notifier)
+              .update(target.copyWith(archived: true));
+        case AdjustWalletBalanceAction a:
+          final wallets = ref.read(walletListProvider);
+          final query = a.walletName.trim().toLowerCase();
+          final target = wallets
+              .where((w) =>
+                  w.name.toLowerCase() == query ||
+                  w.name.toLowerCase().contains(query))
+              .firstOrNull;
+          if (target == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('No wallet named "${a.walletName}".')),
+            );
+            return;
+          }
+          final balances = ref.read(walletBalancesProvider);
+          final currentBalance = balances[target.id] ?? target.startingBalance;
+          final diff = a.targetBalance - currentBalance;
+          if (diff.abs() < 0.005) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text(
+                      '${target.name} balance is already ${pesoExact(a.targetBalance)}.')),
+            );
+            return;
+          }
+          final isSurplus = diff > 0;
+          final txn = Transaction(
+            id: _uuid.v4(),
+            amount: diff.abs(),
+            type: isSurplus ? TransactionType.income : TransactionType.expense,
+            category: isSurplus ? 'Investment' : 'Adjustment',
+            note: isSurplus
+                ? 'Interest / Balance adjustment'
+                : 'Balance adjustment',
+            date: DateTime.now(),
+            walletId: target.id,
           );
-          return;
-        }
-        await ref
-            .read(walletListProvider.notifier)
-            .update(target.copyWith(archived: true));
-      case AdjustWalletBalanceAction a:
-        final wallets = ref.read(walletListProvider);
-        final query = a.walletName.trim().toLowerCase();
-        final target = wallets
-            .where((w) =>
-                w.name.toLowerCase() == query ||
-                w.name.toLowerCase().contains(query))
-            .firstOrNull;
-        if (target == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No wallet named "${a.walletName}".')),
-          );
-          return;
-        }
-        final balances = ref.read(walletBalancesProvider);
-        final currentBalance = balances[target.id] ?? target.startingBalance;
-        final diff = a.targetBalance - currentBalance;
-        if (diff.abs() < 0.005) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(
-                    '${target.name} balance is already ${pesoExact(a.targetBalance)}.')),
-          );
-          return;
-        }
-        final isSurplus = diff > 0;
-        final txn = Transaction(
-          id: _uuid.v4(),
-          amount: diff.abs(),
-          type: isSurplus ? TransactionType.income : TransactionType.expense,
-          category: isSurplus ? 'Investment' : 'Adjustment',
-          note: isSurplus
-              ? 'Interest / Balance adjustment'
-              : 'Balance adjustment',
-          date: DateTime.now(),
-          walletId: target.id,
-        );
-        await ref.read(transactionListProvider.notifier).add(txn);
-    }
+          await ref.read(transactionListProvider.notifier).add(txn);
+      }
 
-    await ref.read(walletListProvider.notifier).load();
-    await ref.read(transactionListProvider.notifier).load();
-    await ref.read(debtListProvider.notifier).load();
-    await ref.read(goalListProvider.notifier).load();
-    await ref.read(recurringListProvider.notifier).load();
+      await ref.read(walletListProvider.notifier).load();
+      await ref.read(transactionListProvider.notifier).load();
+      await ref.read(debtListProvider.notifier).load();
+      await ref.read(goalListProvider.notifier).load();
+      await ref.read(recurringListProvider.notifier).load();
 
-    if (mounted) {
-      final label = switch (action) {
-        DeleteDebtAction _ || DeleteGoalAction _ => 'Deleted.',
-        UpdateRecurringAction a when a.delete => 'Deleted.',
-        ArchiveWalletAction _ => 'Archived.',
-        AdjustWalletBalanceAction _ => 'Adjusted.',
-        UpdateWalletAction _ ||
-        UpdateDebtAction _ ||
-        UpdateGoalAction _ ||
-        UpdateRecurringAction _ =>
-          'Updated.',
-        _ => 'Added.',
-      };
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(label)),
-      );
+      if (mounted) {
+        final label = switch (action) {
+          DeleteDebtAction _ || DeleteGoalAction _ => 'Deleted.',
+          UpdateRecurringAction a when a.delete => 'Deleted.',
+          ArchiveWalletAction _ => 'Archived.',
+          AdjustWalletBalanceAction _ => 'Adjusted.',
+          UpdateWalletAction _ ||
+          UpdateDebtAction _ ||
+          UpdateGoalAction _ ||
+          UpdateRecurringAction _ =>
+            'Updated.',
+          _ => 'Added.',
+        };
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(label)),
+        );
+      }
+      _removeAction(messageId, action);
+    } finally {
+      _executingActions.remove(action);
     }
-    _removeAction(messageId, action);
-  } finally {
-    _executingActions.remove(action);
   }
-}
 
   void _removeAction(String messageId, CoachAction action) {
     final list = _session.pendingActions[messageId];

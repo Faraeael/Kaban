@@ -54,7 +54,8 @@ class ChatBubble extends StatelessWidget {
                 color: Colors.black54,
                 shape: const CircleBorder(),
                 child: IconButton(
-                  icon: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
+                  icon: const Icon(Icons.close_rounded,
+                      color: Colors.white, size: 24),
                   onPressed: () => Navigator.pop(ctx),
                 ),
               ),
@@ -112,8 +113,8 @@ class ChatBubble extends StatelessWidget {
                           children: [
                             if (hasValidImage) ...[
                               GestureDetector(
-                                onTap: () => _showFullImage(
-                                    context, message.imagePath!),
+                                onTap: () =>
+                                    _showFullImage(context, message.imagePath!),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
                                   child: ConstrainedBox(

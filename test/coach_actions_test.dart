@@ -394,7 +394,8 @@ Due date: 15th
         role: ChatRole.user,
         content: 'Check my loans',
         timestamp: DateTime(2026, 3, 29, 14, 30),
-        imagePath: '/data/user/0/ph.kaban.app/app_flutter/chat_images/receipt.jpg',
+        imagePath:
+            '/data/user/0/ph.kaban.app/app_flutter/chat_images/receipt.jpg',
       );
       final map = msg.toMap();
       expect(map['image_path'],
