@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:finance_tracker/models/debt.dart';
 import 'package:finance_tracker/models/quick_preset.dart';
 import 'package:finance_tracker/services/coach_actions.dart';
 
@@ -112,6 +113,35 @@ void main() {
       );
 
       expect(result.actions, isEmpty);
+    });
+
+    test(
+        'accepts create_debt action from multimodal vision even when user caption has no numbers',
+        () {
+      const debt = Debt(
+        id: 'test_debt',
+        name: 'BDO Credit Card',
+        balance: 45210.0,
+        minPayment: 3500.0,
+        apr: 36.0,
+        strategy: DebtStrategy.avalanche,
+        schedule: DebtSchedule.statementCycle,
+        dueDay: 25,
+      );
+      const action = CreateDebtAction(debt);
+
+      final result = validateAgainstUserMessage(
+        actions: [action],
+        userMessage: 'Here is my statement screenshot, can you analyze it?',
+        hasImageAttachment: true,
+      );
+
+      expect(result.actions.length, equals(1));
+      final validated = result.actions.first as CreateDebtAction;
+      expect(validated.debt.name, equals('BDO Credit Card'));
+      expect(validated.debt.balance, equals(45210.0));
+      expect(validated.debt.minPayment, equals(3500.0));
+      expect(validated.debt.dueDay, equals(25));
     });
   });
 }
