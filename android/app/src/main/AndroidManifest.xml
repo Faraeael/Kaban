@@ -38,6 +38,27 @@
             </intent-filter>
         </service>
 
+        <!-- Quick Log Home Screen Widget -->
+        <receiver
+            android:name=".QuickFareWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="ph.kaban.app.WIDGET_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_quick_fare_info" />
+        </receiver>
+
+        <receiver
+            android:name=".QuickLogReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="ph.kaban.app.QUICK_LOG" />
+            </intent-filter>
+        </receiver>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

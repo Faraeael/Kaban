@@ -9,6 +9,7 @@ import '../../utils/formatters.dart';
 import 'widgets/charts.dart';
 import 'widgets/debt_progress.dart';
 import 'widgets/insight_banner.dart';
+import 'widgets/quick_log_card.dart';
 import 'widgets/summary_card.dart';
 import 'widgets/wallet_balance_card.dart';
 
@@ -30,6 +31,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ref.read(goalListProvider.notifier).load();
       ref.read(budgetListProvider.notifier).load();
       ref.read(subscriptionListProvider.notifier).load();
+      final settings = ref.read(settingsProvider);
+      if (settings.autoBackupOnLaunch) {
+        ref.read(backupServiceProvider).autoBackup();
+      }
     });
   }
 
@@ -190,6 +195,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
             const SizedBox(height: 14),
             const _QuickActionStrip(),
+            const SizedBox(height: 14),
+            const QuickLogCard(),
             const SizedBox(height: 14),
             if (visibleWallets.isNotEmpty) ...[
               Row(

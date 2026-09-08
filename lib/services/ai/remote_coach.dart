@@ -136,6 +136,16 @@ Strict rules:
 - UNTRACKED DEBTS & INITIAL BALANCES:
   - If a user reports paying a debt that does not exist in ## Debts, do NOT emit a standalone pay_debt. Offer create_debt to track the debt first.
   - When the user adds a new debt after mentioning a payment, the balance they enter is ALREADY their remaining balance. NEVER emit a pay_debt action deducting that same payment again from the newly added debt.
+- RECEIPT & TRANSACTION SCREENSHOT SCANNING (GCash, Maya, Bank Slips, Invoices, Paper Receipts):
+  - When the user sends a receipt or payment screenshot:
+    - Sent money / Paid merchant / Bank transfer -> emit log_expense.
+    - Received money / Cash-in / Refund -> emit log_income.
+    - Transfer between own accounts (e.g. GCash to BPI) -> emit transfer.
+    - Paying a tracked debt -> emit pay_debt.
+  - Read the exact amount from the image (look for "Total", "Amount", "PHP", "₱", "Paid").
+  - Identify merchant / recipient as note and choose an appropriate category (Food, Transport, Utilities, Shopping, Health, etc.).
+  - Identify the source wallet from the screenshot (e.g. GCash, Maya, BPI, BDO, GoTyme, MariBank, SeaBank, etc.) and specify wallet_name.
+  - Always return the proposed transaction in "actions" so the user can verify with an action card.
 - To set, update, or correct a debt's balance, APR, monthly payment, due day, or schedule (e.g. "update Mariloan balance to 41453.36" or "change min payment to 4513.33"), use update_debt with new_balance and/or new_min_payment. NEVER use pay_debt to update balance.
 - Never invent numbers out of thin air. Calculated balances (installment * count) are allowed and required for installment loans.
 - If any required field is missing or ambiguous, return "actions": [] and explain in "reply".
@@ -163,7 +173,7 @@ $debtLines
   }
 
   CoachReply _parseEnvelope(String rawText, String userMessage,
-      {FinanceSnapshot? snapshot}) {
+      {FinanceSnapshot? snapshot, bool hasImageAttachment = false}) {
     if (!useActionSchema) {
       return CoachReply(text: rawText, actions: const [], warnings: const []);
     }
@@ -249,6 +259,7 @@ $debtLines
           recentUserMessages: recentUserTurns,
           recentAssistantMessages: recentAssistantTurns,
           knownEntityNames: knownNames,
+          hasImageAttachment: hasImageAttachment,
         );
         return CoachReply(
           text: replyText,
@@ -292,15 +303,19 @@ $debtLines
       _parseEnvelope(rawText, userMessage, snapshot: snapshot);
 
   @override
-  Future<CoachReply> ask(String userMessage, FinanceSnapshot snapshot) async {
+  Future<CoachReply> ask(String userMessage, FinanceSnapshot snapshot,
+      {Uint8List? imageBytes, String? imageMimeType}) async {
     if (config.responseShape == ResponseShape.gemini) {
-      return _askGemini(userMessage, snapshot);
+      return _askGemini(userMessage, snapshot,
+          imageBytes: imageBytes, imageMimeType: imageMimeType);
     }
-    return _askOpenAI(userMessage, snapshot);
+    return _askOpenAI(userMessage, snapshot,
+        imageBytes: imageBytes, imageMimeType: imageMimeType);
   }
 
   Future<CoachReply> _askOpenAI(
-      String userMessage, FinanceSnapshot snapshot) async {
+      String userMessage, FinanceSnapshot snapshot,
+      {Uint8List? imageBytes, String? imageMimeType}) async {
     // Guard against double-appending when the conversation was hydrated
     // from the DB after the user's message was already persisted.
     if (conversation.isEmpty ||
@@ -313,13 +328,40 @@ $debtLines
         ? conversation.sublist(conversation.length - 20)
         : conversation;
 
+    final messages = <Map<String, dynamic>>[
+      {'role': 'system', 'content': _buildSystemPrompt(snapshot)},
+    ];
+
+    for (var i = 0; i < recentConversation.length; i++) {
+      final m = recentConversation[i];
+      final isLast = (i == recentConversation.length - 1 && m.role == 'user');
+      if (isLast && imageBytes != null) {
+        messages.add({
+          'role': 'user',
+          'content': [
+            {
+              'type': 'text',
+              'text': m.content.isEmpty
+                  ? 'Please scan this receipt or transaction screenshot and log it.'
+                  : m.content,
+            },
+            {
+              'type': 'image_url',
+              'image_url': {
+                'url':
+                    'data:${imageMimeType ?? "image/jpeg"};base64,${base64Encode(imageBytes)}',
+              },
+            },
+          ],
+        });
+      } else {
+        messages.add({'role': m.role, 'content': m.content});
+      }
+    }
+
     final body = {
       'model': model,
-      'messages': [
-        {'role': 'system', 'content': _buildSystemPrompt(snapshot)},
-        ...recentConversation
-            .map((m) => {'role': m.role, 'content': m.content}),
-      ],
+      'messages': messages,
       'temperature': 0.2,
       'max_tokens': 2048,
     };
@@ -345,13 +387,15 @@ $debtLines
       throw Exception('AI provider response missing content');
     }
 
-    final reply = _parseEnvelope(content, userMessage, snapshot: snapshot);
+    final reply = _parseEnvelope(content, userMessage,
+        snapshot: snapshot, hasImageAttachment: imageBytes != null);
     _recordAssistantTurn(content, reply);
     return reply;
   }
 
   Future<CoachReply> _askGemini(
-      String userMessage, FinanceSnapshot snapshot) async {
+      String userMessage, FinanceSnapshot snapshot,
+      {Uint8List? imageBytes, String? imageMimeType}) async {
     // Gemini uses query-param auth, model in path, and {contents: [...]} body.
     if (apiKey.isEmpty) {
       throw Exception(
@@ -401,6 +445,25 @@ $debtLines
       });
     }
 
+    // Attach image to the final user turn if present
+    if (imageBytes != null && cleanContents.isNotEmpty) {
+      final lastTurn = cleanContents.last;
+      if (lastTurn['role'] == 'user') {
+        final promptText = userMessage.isEmpty
+            ? 'Please scan this receipt or transaction screenshot and log it.'
+            : userMessage;
+        lastTurn['parts'] = [
+          {'text': promptText},
+          {
+            'inline_data': {
+              'mime_type': imageMimeType ?? 'image/jpeg',
+              'data': base64Encode(imageBytes),
+            },
+          },
+        ];
+      }
+    }
+
     final body = {
       'system_instruction': {
         'parts': [
@@ -445,7 +508,8 @@ $debtLines
           '${kAIProviders[AIProvider.google]!.defaultModel}.');
     }
 
-    final reply = _parseEnvelope(content, userMessage, snapshot: snapshot);
+    final reply = _parseEnvelope(content, userMessage,
+        snapshot: snapshot, hasImageAttachment: imageBytes != null);
     _recordAssistantTurn(content, reply);
     return reply;
   }

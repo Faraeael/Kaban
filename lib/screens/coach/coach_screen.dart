@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/chat_message.dart';
 import '../../models/debt.dart';
@@ -56,6 +57,61 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   _CoachSession get _session => ref.read(_sessionProvider);
 
   bool _didInitialScroll = false;
+  XFile? _attachedImage;
+  Uint8List? _attachedImageBytes;
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
+      );
+      if (picked != null) {
+        final bytes = await picked.readAsBytes();
+        setState(() {
+          _attachedImage = picked;
+          _attachedImageBytes = bytes;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick image: $e')),
+        );
+      }
+    }
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_rounded),
+              title: const Text('Take a photo / Camera'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: const Text('Choose from Gallery / Screenshot'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _scrollToBottom({bool animate = true, bool checkCards = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -677,7 +733,19 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   // assistant reply and action cards still land and appear on return.
   Future<void> _sendNow(String text) async {
     final trimmed = text.trim();
-    if (trimmed.isEmpty) return;
+    final hasImage = _attachedImageBytes != null;
+    if (trimmed.isEmpty && !hasImage) return;
+
+    final imageBytes = _attachedImageBytes;
+    final imageMime = _attachedImage != null &&
+            _attachedImage!.name.toLowerCase().endsWith('.png')
+        ? 'image/png'
+        : 'image/jpeg';
+
+    setState(() {
+      _attachedImage = null;
+      _attachedImageBytes = null;
+    });
 
     final isConfirmIntent = RegExp(
       r'^(?:confirm|approve|accept|yes|save\s+it|save\s+them|do\s+it|proceed)\b',
@@ -695,10 +763,14 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       }
     }
 
+    final messageContent = trimmed.isNotEmpty
+        ? (hasImage ? '📷 [Receipt attached]\n$trimmed' : trimmed)
+        : '📷 [Scanned receipt / screenshot]';
+
     final userMsg = ChatMessage(
       id: _uuid.v4(),
       role: ChatRole.user,
-      content: trimmed,
+      content: messageContent,
       timestamp: DateTime.now(),
     );
     await ref.read(chatListProvider.notifier).add(userMsg);
@@ -709,7 +781,12 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
 
     try {
       final service = await ref.read(coachServiceProvider.future);
-      final coachReply = await service.ask(trimmed, snapshot);
+      final coachReply = await service.ask(
+        trimmed,
+        snapshot,
+        imageBytes: imageBytes,
+        imageMimeType: imageMime,
+      );
       List<CoachAction> actions = coachReply.actions;
       if (actions.isEmpty) {
         final userActions =
@@ -846,7 +923,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   void _send(String text) {
     if (_session.busy || _session.inFlight != null) return;
     final trimmed = text.trim();
-    if (trimmed.isEmpty) return;
+    if (trimmed.isEmpty && _attachedImageBytes == null) return;
     final session = _session;
     _input.clear();
     session.draftText = '';
@@ -1103,11 +1180,73 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
           ),
           if (messages.isEmpty && prompts.isNotEmpty)
             SuggestedPrompts(prompts: prompts, onTap: _send),
+          if (_attachedImageBytes != null)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: t.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: t.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.memory(
+                      _attachedImageBytes!,
+                      width: 44,
+                      height: 44,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Receipt / screenshot attached',
+                          style: t.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: t.colorScheme.onSurface,
+                          ),
+                        ),
+                        Text(
+                          'Tap send to scan and auto-create action card',
+                          style: t.textTheme.labelSmall?.copyWith(
+                            color: t.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    tooltip: 'Remove',
+                    onPressed: () => setState(() {
+                      _attachedImage = null;
+                      _attachedImageBytes = null;
+                    }),
+                  ),
+                ],
+              ),
+            ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
               child: Row(
                 children: [
+                  IconButton(
+                    onPressed: _session.busy ? null : _showImageSourceSheet,
+                    icon: const Icon(Icons.add_a_photo_outlined),
+                    tooltip: 'Scan receipt / screenshot',
+                    color: t.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 4),
                   Expanded(
                     child: TextField(
                       controller: _input,
@@ -1118,8 +1257,11 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                       textInputAction: TextInputAction.newline,
                       onTap: () => _scrollToBottom(animate: true),
                       decoration: InputDecoration(
-                        hintText:
-                            _session.busy ? 'Thinking...' : 'Ask a question...',
+                        hintText: _session.busy
+                            ? 'Thinking...'
+                            : (_attachedImageBytes != null
+                                ? 'Add a note or tap send...'
+                                : 'Ask a question or scan receipt...'),
                       ),
                     ),
                   ),

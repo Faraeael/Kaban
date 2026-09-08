@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'coach_service.dart';
 
 /// On-device coach. Rule-based but with intent scoring so the same question
@@ -18,7 +20,16 @@ class LocalCoach implements CoachService {
   }
 
   @override
-  Future<CoachReply> ask(String userMessage, FinanceSnapshot snapshot) async {
+  Future<CoachReply> ask(String userMessage, FinanceSnapshot snapshot,
+      {Uint8List? imageBytes, String? imageMimeType}) async {
+    if (imageBytes != null) {
+      return const CoachReply(
+        text:
+            '📸 Screenshot and receipt scanning requires an AI model with vision capabilities (Gemini or OpenAI). Please configure an AI provider in Settings → AI Coach.',
+        actions: [],
+        warnings: [],
+      );
+    }
     final lower = userMessage.toLowerCase();
     final scored = <_Intent>[];
     void match(_Intent intent) {

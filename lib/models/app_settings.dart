@@ -17,6 +17,7 @@ class AppSettings {
   final bool biometricLock;
   final bool autoRecurring;
   final bool privacyMode;
+  final bool autoBackupOnLaunch;
 
   const AppSettings({
     this.aiProvider = AIProvider.local,
@@ -33,6 +34,7 @@ class AppSettings {
     this.biometricLock = false,
     this.autoRecurring = true,
     this.privacyMode = false,
+    this.autoBackupOnLaunch = false,
   });
 
   AppSettings copyWith({
@@ -50,6 +52,7 @@ class AppSettings {
     bool? biometricLock,
     bool? autoRecurring,
     bool? privacyMode,
+    bool? autoBackupOnLaunch,
   }) =>
       AppSettings(
         aiProvider: aiProvider ?? this.aiProvider,
@@ -66,5 +69,6 @@ class AppSettings {
         biometricLock: biometricLock ?? this.biometricLock,
         autoRecurring: autoRecurring ?? this.autoRecurring,
         privacyMode: privacyMode ?? this.privacyMode,
+        autoBackupOnLaunch: autoBackupOnLaunch ?? this.autoBackupOnLaunch,
       );
 }

@@ -34,6 +34,7 @@ class SettingsService {
         biometricLock: m['biometricLock'] as bool? ?? false,
         autoRecurring: m['autoRecurring'] as bool? ?? true,
         privacyMode: m['privacyMode'] as bool? ?? false,
+        autoBackupOnLaunch: m['autoBackupOnLaunch'] as bool? ?? false,
       );
     } catch (_) {
       return const AppSettings();
@@ -57,6 +58,7 @@ class SettingsService {
       'biometricLock': s.biometricLock,
       'autoRecurring': s.autoRecurring,
       'privacyMode': s.privacyMode,
+      'autoBackupOnLaunch': s.autoBackupOnLaunch,
     };
     await prefs.setString(_key, json.encode(m));
   }

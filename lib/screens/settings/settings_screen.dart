@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:local_auth/local_auth.dart';
 import '../../models/debt.dart';
 import '../../services/ai/ai_provider_config.dart';
@@ -430,10 +431,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 8),
           _section('Data', t),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.ios_share_rounded),
-            label: const Text('Export backup'),
-            onPressed: () => _exportBackup(context),
+          SwitchListTile(
+            title: const Text('Auto-backup on launch'),
+            subtitle: const Text(
+                'Silently saves a backup snapshot to your device each time you open the app.'),
+            value: settings.autoBackupOnLaunch,
+            onChanged: (v) => ref
+                .read(settingsProvider.notifier)
+                .update(settings.copyWith(autoBackupOnLaunch: v)),
+            contentPadding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.download_rounded),
+                  label: const Text('Save backup'),
+                  onPressed: () => _exportBackup(context),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.share_rounded),
+                  label: const Text('Share backup'),
+                  onPressed: () => _shareBackup(context),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
@@ -526,6 +552,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Export failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _shareBackup(BuildContext context) async {
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box != null
+        ? box.localToGlobal(Offset.zero) & box.size
+        : null;
+    try {
+      final bytes = await ref.read(backupServiceProvider).export();
+      final name = BackupService.backupFileName();
+      // ignore: deprecated_member_use
+      await Share.shareXFiles(
+        [
+          XFile.fromData(
+            bytes,
+            name: name,
+            mimeType: 'application/json',
+          ),
+        ],
+        subject: 'Kaban Backup - $name',
+        sharePositionOrigin: origin,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Share failed: $e')),
         );
       }
     }

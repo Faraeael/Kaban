@@ -18,6 +18,7 @@ class GoalsScreen extends ConsumerStatefulWidget {
 class _GoalsScreenState extends ConsumerState<GoalsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  bool _quincenaMode = false; // true = split month into 1st–15th / 16th–end
 
   @override
   void initState() {
@@ -193,26 +194,131 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
         ),
       );
     }
+
+    final txns = ref.watch(transactionListProvider);
+    final now = DateTime.now();
+
+    // ── Quincena date window ────────────────────────────────────────────────
+    final DateTime windowStart;
+    final DateTime windowEnd;
+    final double limitMultiplier; // fraction of monthly limit to use
+
+    if (_quincenaMode) {
+      final cutoff = now.day <= 15 ? 15 : 31;
+      windowStart = DateTime(now.year, now.month, 1);
+      windowEnd = cutoff == 15
+          ? DateTime(now.year, now.month, 15, 23, 59, 59)
+          : DateTime(now.year, now.month + 1, 1)
+              .subtract(const Duration(seconds: 1));
+      limitMultiplier = 0.5;
+    } else {
+      windowStart = DateTime(now.year, now.month, 1);
+      windowEnd = DateTime(now.year, now.month + 1, 1)
+          .subtract(const Duration(seconds: 1));
+      limitMultiplier = 1.0;
+    }
+
+    // Sum expenses by category inside the window
+    Map<String, double> spent = {};
+    for (final tx in txns) {
+      if (tx.type.name != 'expense') continue;
+      if (tx.date.isBefore(windowStart) || tx.date.isAfter(windowEnd)) continue;
+      spent[tx.category] = (spent[tx.category] ?? 0) + tx.amount;
+    }
+
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
       itemCount: budgets.length + 1,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, i) {
         if (i == 0) {
+          // ── Header row with Quincena toggle ────────────────────────────
           return Padding(
             padding: const EdgeInsets.only(bottom: 6),
-            child: Text(
-              'Cap spending per category. Bars turn red when you go over.',
-              style: t.textTheme.bodySmall,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _quincenaMode
+                        ? (now.day <= 15
+                            ? 'Quincena 1 (1st – 15th)'
+                            : 'Quincena 2 (16th – end)')
+                        : 'Full month  •  tap ⚡ for quincena view',
+                    style: t.textTheme.bodySmall,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => setState(() => _quincenaMode = !_quincenaMode),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: _quincenaMode
+                          ? t.colorScheme.primaryContainer
+                          : t.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _quincenaMode
+                            ? t.colorScheme.primary.withValues(alpha: 0.5)
+                            : t.colorScheme.outlineVariant
+                                .withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('⚡',
+                            style: TextStyle(fontSize: 12)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Quincena',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: _quincenaMode
+                                ? t.colorScheme.onPrimaryContainer
+                                : t.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         }
+
         final b = budgets[i - 1];
+        final effectiveLimit = b.monthlyLimit * limitMultiplier;
+        final usedAmount = spent[b.category] ?? 0;
+        final ratio = effectiveLimit > 0
+            ? (usedAmount / effectiveLimit).clamp(0.0, 1.0)
+            : 0.0;
+        final isOver = usedAmount > effectiveLimit;
+        final isWarning = ratio >= 0.8 && !isOver;
+
+        final Color barColor;
+        if (isOver) {
+          barColor = t.colorScheme.error;
+        } else if (isWarning) {
+          barColor = Colors.orange.shade600;
+        } else {
+          barColor = t.colorScheme.primary;
+        }
+
         return Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: t.colorScheme.surfaceContainerLow,
+            color: isOver
+                ? t.colorScheme.errorContainer.withValues(alpha: 0.3)
+                : t.colorScheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(14),
+            border: isOver
+                ? Border.all(
+                    color: t.colorScheme.error.withValues(alpha: 0.4))
+                : null,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,15 +326,68 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
               Row(
                 children: [
                   Expanded(
-                      child: Text(b.category,
-                          style: const TextStyle(fontWeight: FontWeight.w700))),
-                  Text(peso(b.monthlyLimit),
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                    child: Text(
+                      b.category,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: isOver ? t.colorScheme.error : null,
+                      ),
+                    ),
+                  ),
+                  if (isOver)
+                    Icon(Icons.warning_amber_rounded,
+                        size: 16, color: t.colorScheme.error),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${peso(usedAmount)} / ${peso(effectiveLimit)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: isOver
+                          ? t.colorScheme.error
+                          : isWarning
+                              ? Colors.orange.shade700
+                              : t.colorScheme.onSurface,
+                    ),
+                  ),
                 ],
               ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: ratio,
+                  minHeight: 8,
+                  backgroundColor:
+                      t.colorScheme.surfaceContainerHighest,
+                  valueColor: AlwaysStoppedAnimation(barColor),
+                ),
+              ),
               const SizedBox(height: 6),
-              Text('${b.category} limit: ${peso(b.monthlyLimit)}/month',
-                  style: t.textTheme.bodySmall),
+              Row(
+                children: [
+                  Text(
+                    isOver
+                        ? '₱${(usedAmount - effectiveLimit).toStringAsFixed(0)} over budget'
+                        : '₱${(effectiveLimit - usedAmount).toStringAsFixed(0)} remaining',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isOver
+                          ? t.colorScheme.error
+                          : t.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${(ratio * 100).toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: barColor,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         );

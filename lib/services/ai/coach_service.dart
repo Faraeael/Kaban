@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../coach_actions.dart';
 
 class CoachReply {
@@ -65,6 +67,7 @@ class DebtSnapshot {
 }
 
 abstract class CoachService {
-  Future<CoachReply> ask(String userMessage, FinanceSnapshot snapshot);
+  Future<CoachReply> ask(String userMessage, FinanceSnapshot snapshot,
+      {Uint8List? imageBytes, String? imageMimeType});
   List<String> suggestedPrompts(FinanceSnapshot snapshot);
 }

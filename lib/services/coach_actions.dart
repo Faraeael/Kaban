@@ -1168,6 +1168,7 @@ List<double> extractAmounts(String text) {
   List<String> recentUserMessages = const [],
   List<String> recentAssistantMessages = const [],
   List<String> knownEntityNames = const [],
+  bool hasImageAttachment = false,
 }) {
   final userLower = userMessage.toLowerCase();
   final isConfirmOrFollowUp = RegExp(
@@ -1196,8 +1197,11 @@ List<double> extractAmounts(String text) {
     // 1. Amount safety check: if the action has a non-zero amount,
     // it must match an amount mentioned in the user message (within 0.05),
     // be present in conversation context, or be a derived product (installment * count).
+    // If an image was attached (receipt/screenshot), amount is extracted by multimodal vision.
     bool matchesAmount = true;
-    if (action is CreateDebtAction) {
+    if (hasImageAttachment) {
+      matchesAmount = true;
+    } else if (action is CreateDebtAction) {
       final bal = action.debt.balance;
       final minPay = action.debt.minPayment;
       // 1. Check if balance matches any user amount directly
@@ -1381,15 +1385,16 @@ List<double> extractAmounts(String text) {
           assistantLower.contains(nameLower) ||
           tokens.any((t) => assistantLower.contains(t));
 
-      if (!hasNameMatch) {
+      if (!hasNameMatch && !hasImageAttachment) {
         continue;
       }
     }
 
     // If LogTransactionAction had a walletName that the user did not say,
     // clear the walletName so it defaults safely rather than targeting the wrong wallet.
+    // (Unless image attachment is present, where vision detected the wallet from the receipt/app).
     CoachAction processedAction = action;
-    if (action is LogTransactionAction && action.walletName != null) {
+    if (!hasImageAttachment && action is LogTransactionAction && action.walletName != null) {
       final wLower = action.walletName!.toLowerCase();
       final tokens = wLower.split(RegExp(r'\s+')).where((t) => t.length >= 3);
       final hasMatch = userLower.contains(wLower) ||

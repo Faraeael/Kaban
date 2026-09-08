@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Home Screen widget layout for Kaban Quick Log.
+    Shows a header row and 4 preset buttons in a 2×2 grid.
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_background"
+    android:padding="12dp">
+
+    <!-- Header -->
+    <LinearLayout
+        android:id="@+id/widget_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="⚡ Quick Log"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFFFF" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Kaban"
+            android:textSize="11sp"
+            android:textColor="#AAFFFFFF" />
+    </LinearLayout>
+
+    <!-- Row 1 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:gravity="fill">
+
+        <Button
+            android:id="@+id/btn_preset_0"
+            style="@style/Widget.AppCompat.Button.Borderless"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/widget_chip_bg"
+            android:text="—"
+            android:textSize="11sp"
+            android:textColor="#FFFFFFFF"
+            android:gravity="center" />
+
+        <Button
+            android:id="@+id/btn_preset_1"
+            style="@style/Widget.AppCompat.Button.Borderless"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/widget_chip_bg"
+            android:text="—"
+            android:textSize="11sp"
+            android:textColor="#FFFFFFFF"
+            android:gravity="center" />
+
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="6dp" />
+
+    <!-- Row 2 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_preset_2"
+            style="@style/Widget.AppCompat.Button.Borderless"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/widget_chip_bg"
+            android:text="—"
+            android:textSize="11sp"
+            android:textColor="#FFFFFFFF"
+            android:gravity="center" />
+
+        <Button
+            android:id="@+id/btn_preset_3"
+            style="@style/Widget.AppCompat.Button.Borderless"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/widget_chip_bg"
+            android:text="—"
+            android:textSize="11sp"
+            android:textColor="#FFFFFFFF"
+            android:gravity="center" />
+
+    </LinearLayout>
+
+</LinearLayout>
