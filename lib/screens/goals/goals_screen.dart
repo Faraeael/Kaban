@@ -251,8 +251,8 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                   onTap: () => setState(() => _quincenaMode = !_quincenaMode),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: _quincenaMode
                           ? t.colorScheme.primaryContainer
@@ -268,8 +268,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('⚡',
-                            style: TextStyle(fontSize: 12)),
+                        const Text('⚡', style: TextStyle(fontSize: 12)),
                         const SizedBox(width: 4),
                         Text(
                           'Quincena',
@@ -316,8 +315,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                 : t.colorScheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(14),
             border: isOver
-                ? Border.all(
-                    color: t.colorScheme.error.withValues(alpha: 0.4))
+                ? Border.all(color: t.colorScheme.error.withValues(alpha: 0.4))
                 : null,
           ),
           child: Column(
@@ -358,8 +356,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                 child: LinearProgressIndicator(
                   value: ratio,
                   minHeight: 8,
-                  backgroundColor:
-                      t.colorScheme.surfaceContainerHighest,
+                  backgroundColor: t.colorScheme.surfaceContainerHighest,
                   valueColor: AlwaysStoppedAnimation(barColor),
                 ),
               ),

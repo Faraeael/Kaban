@@ -1394,7 +1394,9 @@ List<double> extractAmounts(String text) {
     // clear the walletName so it defaults safely rather than targeting the wrong wallet.
     // (Unless image attachment is present, where vision detected the wallet from the receipt/app).
     CoachAction processedAction = action;
-    if (!hasImageAttachment && action is LogTransactionAction && action.walletName != null) {
+    if (!hasImageAttachment &&
+        action is LogTransactionAction &&
+        action.walletName != null) {
       final wLower = action.walletName!.toLowerCase();
       final tokens = wLower.split(RegExp(r'\s+')).where((t) => t.length >= 3);
       final hasMatch = userLower.contains(wLower) ||

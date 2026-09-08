@@ -73,14 +73,12 @@ class QuickLogCard extends ConsumerWidget {
                       (p) => _PresetChip(
                         preset: p,
                         onLog: () => _log(context, ref, p),
-                        onEdit: () =>
-                            _openEditSheet(context, ref, preset: p),
+                        onEdit: () => _openEditSheet(context, ref, preset: p),
                       ),
                     ),
                 if (presets.length < 4)
                   _AddChip(
-                      onTap: () =>
-                          _openEditSheet(context, ref, preset: null)),
+                      onTap: () => _openEditSheet(context, ref, preset: null)),
               ],
             ),
         ],
@@ -90,8 +88,7 @@ class QuickLogCard extends ConsumerWidget {
 
   // ---------- helpers -------------------------------------------------------
 
-  Future<void> _log(
-      BuildContext context, WidgetRef ref, QuickPreset p) async {
+  Future<void> _log(BuildContext context, WidgetRef ref, QuickPreset p) async {
     final wallets =
         ref.read(walletListProvider).where((w) => !w.archived).toList();
     if (wallets.isEmpty) {
@@ -218,14 +215,12 @@ class _AddChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: t.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color:
-                t.colorScheme.outlineVariant.withValues(alpha: 0.4),
+            color: t.colorScheme.outlineVariant.withValues(alpha: 0.4),
             style: BorderStyle.solid,
           ),
         ),
@@ -271,8 +266,8 @@ class _EmptyState extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Text(
             'Tap ⚙ to add your quick presets',
-            style: TextStyle(
-                fontSize: 13, color: t.colorScheme.onSurfaceVariant),
+            style:
+                TextStyle(fontSize: 13, color: t.colorScheme.onSurfaceVariant),
           ),
         ),
       ),
@@ -322,9 +317,7 @@ class _PresetManagerSheet extends ConsumerWidget {
                       icon: const Icon(Icons.refresh_rounded, size: 16),
                       label: const Text('Reset'),
                       onPressed: () async {
-                        await ref
-                            .read(quickPresetProvider.notifier)
-                            .reset();
+                        await ref.read(quickPresetProvider.notifier).reset();
                       },
                     ),
                     IconButton(
@@ -341,47 +334,42 @@ class _PresetManagerSheet extends ConsumerWidget {
             child: presets.isEmpty
                 ? Center(
                     child: Text('No presets yet',
-                        style: TextStyle(
-                            color: t.colorScheme.onSurfaceVariant)),
+                        style:
+                            TextStyle(color: t.colorScheme.onSurfaceVariant)),
                   )
                 : ReorderableListView.builder(
                     scrollController: ctrl,
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     itemCount: presets.length,
                     // ignore: deprecated_member_use
-                    onReorder: (o, n) => ref
-                        .read(quickPresetProvider.notifier)
-                        .reorder(o, n),
+                    onReorder: (o, n) =>
+                        ref.read(quickPresetProvider.notifier).reorder(o, n),
                     itemBuilder: (_, i) {
                       final p = presets[i];
                       return ListTile(
                         key: ValueKey(p.id),
-                        leading: Text(p.icon,
-                            style: const TextStyle(fontSize: 24)),
+                        leading:
+                            Text(p.icon, style: const TextStyle(fontSize: 24)),
                         title: Text(
                           '${p.label}  ₱${p.amount.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600),
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         subtitle: Text(p.category),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.edit_outlined,
-                                  size: 18),
+                              icon: const Icon(Icons.edit_outlined, size: 18),
                               onPressed: () => _openEdit(context, p),
                             ),
                             IconButton(
                               icon: Icon(Icons.delete_outline,
-                                  size: 18,
-                                  color: t.colorScheme.error),
+                                  size: 18, color: t.colorScheme.error),
                               onPressed: () => ref
                                   .read(quickPresetProvider.notifier)
                                   .remove(p.id),
                             ),
-                            const Icon(Icons.drag_handle_rounded,
-                                size: 20),
+                            const Icon(Icons.drag_handle_rounded, size: 20),
                           ],
                         ),
                       );
@@ -488,8 +476,7 @@ class _PresetEditSheetState extends ConsumerState<_PresetEditSheet> {
                 Expanded(
                   child: TextFormField(
                     controller: _label,
-                    decoration:
-                        const InputDecoration(labelText: 'Label'),
+                    decoration: const InputDecoration(labelText: 'Label'),
                     textCapitalization: TextCapitalization.words,
                   ),
                 ),
@@ -510,11 +497,9 @@ class _PresetEditSheetState extends ConsumerState<_PresetEditSheet> {
               initialValue: kDefaultExpenseCategories.contains(_category)
                   ? _category
                   : kDefaultExpenseCategories.first,
-              decoration:
-                  const InputDecoration(labelText: 'Category'),
+              decoration: const InputDecoration(labelText: 'Category'),
               items: kDefaultExpenseCategories
-                  .map((c) =>
-                      DropdownMenuItem(value: c, child: Text(c)))
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                   .toList(),
               onChanged: (v) => setState(() => _category = v!),
             ),
@@ -522,8 +507,8 @@ class _PresetEditSheetState extends ConsumerState<_PresetEditSheet> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String?>(
                 initialValue: _walletId,
-                decoration: const InputDecoration(
-                    labelText: 'Wallet (optional)'),
+                decoration:
+                    const InputDecoration(labelText: 'Wallet (optional)'),
                 items: [
                   const DropdownMenuItem(
                       value: null, child: Text('Default wallet')),

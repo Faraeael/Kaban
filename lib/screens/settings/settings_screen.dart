@@ -559,9 +559,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _shareBackup(BuildContext context) async {
     final box = context.findRenderObject() as RenderBox?;
-    final origin = box != null
-        ? box.localToGlobal(Offset.zero) & box.size
-        : null;
+    final origin =
+        box != null ? box.localToGlobal(Offset.zero) & box.size : null;
     try {
       final bytes = await ref.read(backupServiceProvider).export();
       final name = BackupService.backupFileName();

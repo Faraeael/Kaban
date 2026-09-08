@@ -48,16 +48,30 @@ void main() {
 
     test('default presets contains the 5 expected presets', () {
       expect(kDefaultQuickPresets.length, equals(5));
-      expect(kDefaultQuickPresets.any((p) => p.label == 'Jeep' && p.amount == 13), isTrue);
-      expect(kDefaultQuickPresets.any((p) => p.label == 'Jeep+' && p.amount == 15), isTrue);
-      expect(kDefaultQuickPresets.any((p) => p.label == 'Trike' && p.amount == 25), isTrue);
-      expect(kDefaultQuickPresets.any((p) => p.label == 'Coffee' && p.amount == 120), isTrue);
-      expect(kDefaultQuickPresets.any((p) => p.label == 'Lunch' && p.amount == 150), isTrue);
+      expect(
+          kDefaultQuickPresets.any((p) => p.label == 'Jeep' && p.amount == 13),
+          isTrue);
+      expect(
+          kDefaultQuickPresets.any((p) => p.label == 'Jeep+' && p.amount == 15),
+          isTrue);
+      expect(
+          kDefaultQuickPresets.any((p) => p.label == 'Trike' && p.amount == 25),
+          isTrue);
+      expect(
+          kDefaultQuickPresets
+              .any((p) => p.label == 'Coffee' && p.amount == 120),
+          isTrue);
+      expect(
+          kDefaultQuickPresets
+              .any((p) => p.label == 'Lunch' && p.amount == 150),
+          isTrue);
     });
   });
 
   group('Action validator with image attachments', () {
-    test('accepts expense action from multimodal vision even when user text has no numbers or merchant', () {
+    test(
+        'accepts expense action from multimodal vision even when user text has no numbers or merchant',
+        () {
       const action = LogTransactionAction(
         amount: 450.0,
         isIncome: false,
@@ -80,7 +94,9 @@ void main() {
       expect(validated.walletName, equals('GCash'));
     });
 
-    test('regular text without image still rejects numbers not mentioned by user', () {
+    test(
+        'regular text without image still rejects numbers not mentioned by user',
+        () {
       const action = LogTransactionAction(
         amount: 450.0,
         isIncome: false,

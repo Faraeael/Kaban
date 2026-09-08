@@ -313,8 +313,7 @@ $debtLines
         imageBytes: imageBytes, imageMimeType: imageMimeType);
   }
 
-  Future<CoachReply> _askOpenAI(
-      String userMessage, FinanceSnapshot snapshot,
+  Future<CoachReply> _askOpenAI(String userMessage, FinanceSnapshot snapshot,
       {Uint8List? imageBytes, String? imageMimeType}) async {
     // Guard against double-appending when the conversation was hydrated
     // from the DB after the user's message was already persisted.
@@ -393,8 +392,7 @@ $debtLines
     return reply;
   }
 
-  Future<CoachReply> _askGemini(
-      String userMessage, FinanceSnapshot snapshot,
+  Future<CoachReply> _askGemini(String userMessage, FinanceSnapshot snapshot,
       {Uint8List? imageBytes, String? imageMimeType}) async {
     // Gemini uses query-param auth, model in path, and {contents: [...]} body.
     if (apiKey.isEmpty) {
