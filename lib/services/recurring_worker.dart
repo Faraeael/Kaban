@@ -14,7 +14,7 @@ class RecurringWorker {
   static const _prefsKey = 'app_settings_v1';
 
   static Future<void> init() async {
-    await Workmanager().initialize(_callbackDispatcher);
+    await Workmanager().initialize(callbackDispatcher);
   }
 
   static Future<void> schedule() async {
@@ -44,7 +44,7 @@ class RecurringWorker {
 }
 
 @pragma('vm:entry-point')
-void _callbackDispatcher() {
+void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     if (task != RecurringWorker.taskName) return true;
 
