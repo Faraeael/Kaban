@@ -6,12 +6,13 @@
 -->
 <appwidget-provider
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:minWidth="250dp"
-    android:minHeight="110dp"
+    android:minWidth="140dp"
+    android:minHeight="80dp"
     android:targetCellWidth="3"
     android:targetCellHeight="2"
     android:updatePeriodMillis="0"
     android:initialLayout="@layout/widget_quick_fare"
+    android:previewLayout="@layout/widget_quick_fare"
     android:widgetCategory="home_screen"
     android:resizeMode="horizontal|vertical"
     android:description="@string/widget_description" />

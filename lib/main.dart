@@ -7,6 +7,7 @@ import 'services/recurring_engine.dart';
 import 'services/recurring_notifier.dart';
 import 'services/recurring_worker.dart';
 import 'state/data_providers.dart';
+import 'state/quick_preset_provider.dart';
 import 'state/settings_provider.dart';
 
 final _localAuth = LocalAuthentication();
@@ -59,6 +60,11 @@ void main() async {
   }
   try {
     await notifService.setSecure(settings.biometricLock);
+  } catch (_) {}
+
+  // Initialize Quick Log presets so Android Home Screen widget is synced on launch
+  try {
+    container.read(quickPresetProvider);
   } catch (_) {}
 
   runApp(

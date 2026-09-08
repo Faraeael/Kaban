@@ -24,7 +24,11 @@ class QuickFareWidgetProvider : AppWidgetProvider() {
         appWidgetIds: IntArray
     ) {
         for (id in appWidgetIds) {
-            updateWidget(context, appWidgetManager, id)
+            try {
+                updateWidget(context, appWidgetManager, id)
+            } catch (t: Throwable) {
+                android.util.Log.e("QuickFareWidget", "Error updating widget $id", t)
+            }
         }
     }
 
@@ -43,6 +47,14 @@ class QuickFareWidgetProvider : AppWidgetProvider() {
     companion object {
         const val ACTION_REFRESH = "ph.kaban.app.WIDGET_REFRESH"
 
+        // Default presets displayed if app hasn't synced custom presets yet
+        private val DEFAULT_PRESETS = arrayOf(
+            Triple("Jeepney", 13f, "🚐"),
+            Triple("Tricycle", 25f, "🛺"),
+            Triple("Lunch", 150f, "🍱"),
+            Triple("Coffee", 120f, "☕")
+        )
+
         fun updateWidget(
             context: Context,
             manager: AppWidgetManager,
@@ -50,6 +62,11 @@ class QuickFareWidgetProvider : AppWidgetProvider() {
         ) {
             val prefs = context.getSharedPreferences("finance_tracker", Context.MODE_PRIVATE)
             val views = RemoteViews(context.packageName, R.layout.widget_quick_fare)
+
+            // Open app Intent
+            val openIntent = context.packageManager
+                .getLaunchIntentForPackage(context.packageName)
+                ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
 
             // Read up to 4 presets stored as "preset_0" … "preset_3"
             val buttonIds = intArrayOf(
@@ -60,27 +77,44 @@ class QuickFareWidgetProvider : AppWidgetProvider() {
             )
 
             for (i in 0..3) {
-                val label = prefs.getString("preset_${i}_label", null)
-                val amount = prefs.getFloat("preset_${i}_amount", -1f)
-                val icon = prefs.getString("preset_${i}_icon", "💸") ?: "💸"
+                var label = prefs.getString("preset_${i}_label", null)
+                var amount = prefs.getFloat("preset_${i}_amount", -1f)
+                var icon = prefs.getString("preset_${i}_icon", null)
                 val category = prefs.getString("preset_${i}_category", "Other") ?: "Other"
                 val walletId = prefs.getString("preset_${i}_walletId", null) ?: ""
 
-                if (label != null && amount >= 0) {
-                    views.setTextViewText(buttonIds[i], "$icon $label\n₱${amount.toInt()}")
+                // Fall back to built-in presets on clean install before first Flutter sync
+                if (label == null && i < DEFAULT_PRESETS.size) {
+                    label = DEFAULT_PRESETS[i].first
+                    amount = DEFAULT_PRESETS[i].second
+                    icon = DEFAULT_PRESETS[i].third
+                }
+
+                if (!label.isNullOrBlank() && amount >= 0) {
+                    val iconStr = if (!icon.isNullOrBlank()) icon else "💸"
+                    val amtFormatted = if (amount % 1f == 0f) "₱${amount.toInt()}" else "₱%.2f".format(amount)
+                    views.setTextViewText(buttonIds[i], "$iconStr $label\n$amtFormatted")
                     views.setOnClickPendingIntent(
                         buttonIds[i],
-                        buildLogIntent(context, widgetId, i, label, amount, category, walletId, icon)
+                        buildLogIntent(context, widgetId, i, label, amount, category, walletId, iconStr)
                     )
                 } else {
                     views.setTextViewText(buttonIds[i], "—")
+                    if (openIntent != null) {
+                        views.setOnClickPendingIntent(
+                            buttonIds[i],
+                            PendingIntent.getActivity(
+                                context,
+                                widgetId * 10 + i + 100,
+                                openIntent,
+                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                            )
+                        )
+                    }
                 }
             }
 
             // Open app on header tap
-            val openIntent = context.packageManager
-                .getLaunchIntentForPackage(context.packageName)
-                ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
             if (openIntent != null) {
                 views.setOnClickPendingIntent(
                     R.id.widget_header,

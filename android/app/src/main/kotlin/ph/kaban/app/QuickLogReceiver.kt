@@ -64,7 +64,7 @@ class QuickLogReceiver : BroadcastReceiver() {
             icon: String
         ): Boolean {
             return try {
-                val dbPath = context.getDatabasePath("kaban.db").absolutePath
+                val dbPath = findDatabasePath(context) ?: return false
                 val db = SQLiteDatabase.openDatabase(
                     dbPath,
                     null,
@@ -92,8 +92,24 @@ class QuickLogReceiver : BroadcastReceiver() {
                 db.close()
                 true
             } catch (e: Exception) {
+                android.util.Log.e("QuickLogReceiver", "Failed to write quick log: ${e.message}", e)
                 false
             }
+        }
+
+        private fun findDatabasePath(context: Context): String? {
+            val candidates = listOf(
+                java.io.File(context.filesDir.parentFile, "app_flutter/finance_tracker.db"),
+                java.io.File(context.filesDir, "finance_tracker.db"),
+                context.getDatabasePath("finance_tracker.db"),
+                context.getDatabasePath("kaban.db")
+            )
+            for (candidate in candidates) {
+                if (candidate.exists()) {
+                    return candidate.absolutePath
+                }
+            }
+            return candidates.first().absolutePath
         }
 
         private fun resolveWalletId(db: SQLiteDatabase, hint: String?): String? {
