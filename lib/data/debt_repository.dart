@@ -14,12 +14,14 @@ class DebtRepository {
 
   Future<void> insert(Debt debt) async {
     final db = await _appDb.db;
-    await db.insert('debts', debt.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('debts', debt.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> update(Debt debt) async {
     final db = await _appDb.db;
-    await db.update('debts', debt.toMap(), where: 'id = ?', whereArgs: [debt.id]);
+    await db
+        .update('debts', debt.toMap(), where: 'id = ?', whereArgs: [debt.id]);
   }
 
   Future<void> delete(String id) async {

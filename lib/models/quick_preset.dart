@@ -59,8 +59,7 @@ class QuickPreset {
       QuickPreset.fromMap(json.decode(src) as Map<String, Object?>);
 
   @override
-  bool operator ==(Object other) =>
-      other is QuickPreset && other.id == id;
+  bool operator ==(Object other) => other is QuickPreset && other.id == id;
 
   @override
   int get hashCode => id.hashCode;

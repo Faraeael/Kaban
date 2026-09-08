@@ -529,6 +529,8 @@ class _CoachIntroPageState extends ConsumerState<_CoachIntroPage> {
                   ? settings.aiModel
                   : (config.defaultModel ?? ''),
               provider: provider,
+              apiKey: _apiKey.text,
+              baseUrl: settings.aiBaseUrl,
               onPick: (id) => notifier.update(settings.copyWith(aiModel: id)),
             ),
             const SizedBox(height: 12),
@@ -664,10 +666,14 @@ class _CoachChoiceTile extends StatelessWidget {
 class _OnboardingModelRow extends StatelessWidget {
   final String currentModelId;
   final AIProvider provider;
+  final String? apiKey;
+  final String? baseUrl;
   final ValueChanged<String> onPick;
   const _OnboardingModelRow({
     required this.currentModelId,
     required this.provider,
+    this.apiKey,
+    this.baseUrl,
     required this.onPick,
   });
 
@@ -690,6 +696,9 @@ class _OnboardingModelRow extends StatelessWidget {
         onSelected: onPick,
         presets: presets,
         headerHint: hint,
+        provider: provider,
+        apiKey: apiKey,
+        baseUrl: baseUrl,
       ),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

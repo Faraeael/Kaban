@@ -28,7 +28,11 @@ void main() {
     });
 
     test('non-Google providers keep OpenAI-shape defaults', () {
-      for (final p in [AIProvider.commandcode, AIProvider.opencode, AIProvider.openrouter]) {
+      for (final p in [
+        AIProvider.commandcode,
+        AIProvider.opencode,
+        AIProvider.openrouter
+      ]) {
         final c = kAIProviders[p]!;
         expect(c.authKind, AuthKind.bearerHeader, reason: '$p auth');
         expect(c.responseShape, ResponseShape.openaiChat, reason: '$p shape');
@@ -114,6 +118,24 @@ void main() {
             reason:
                 'CommandCode preset "${p.id}" is not on the live catalog; remove it.');
       }
+    });
+  });
+
+  group('AIProviderConfig — ModelPreset flags', () {
+    test('OpenRouter free models have isFree set to true', () {
+      final presets = presetsFor(AIProvider.openrouter);
+      expect(presets.every((p) => p.isFree), isTrue);
+    });
+
+    test('Gemini models have supportsVision set to true', () {
+      final presets = presetsFor(AIProvider.google);
+      expect(presets.every((p) => p.supportsVision), isTrue);
+    });
+
+    test('Vision models on OpenRouter (e.g. Qwen Flash) are flagged', () {
+      final presets = presetsFor(AIProvider.openrouter);
+      final qwen = presets.firstWhere((p) => p.id == 'qwen/qwen3.8-flash');
+      expect(qwen.supportsVision, isTrue);
     });
   });
 }

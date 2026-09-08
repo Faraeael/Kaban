@@ -14,7 +14,8 @@ class BudgetRepository {
 
   Future<void> upsert(Budget budget) async {
     final db = await _appDb.db;
-    await db.insert('budgets', budget.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('budgets', budget.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> delete(String id) async {

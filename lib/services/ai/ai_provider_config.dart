@@ -82,11 +82,15 @@ class ModelPreset {
   final String name;
   final String tagline;
   final String family;
+  final bool isFree;
+  final bool supportsVision;
   const ModelPreset({
     required this.id,
     required this.name,
     required this.tagline,
     required this.family,
+    this.isFree = false,
+    this.supportsVision = false,
   });
 }
 
@@ -99,30 +103,35 @@ const Map<AIProvider, List<ModelPreset>> kModelPresetsByProvider = {
       name: 'GPT-5.4 Mini',
       tagline: 'Fast, cheap, solid defaults. Best for everyday questions.',
       family: 'OpenAI',
+      supportsVision: true,
     ),
     ModelPreset(
       id: 'gpt-5.5',
       name: 'GPT-5.5',
       tagline: 'Newer flagship. Better reasoning, slower, pricier.',
       family: 'OpenAI',
+      supportsVision: true,
     ),
     ModelPreset(
       id: 'gpt-5.4',
       name: 'GPT-5.4',
       tagline: 'Slightly smarter than Mini. Middle ground.',
       family: 'OpenAI',
+      supportsVision: true,
     ),
     ModelPreset(
       id: 'Qwen/Qwen3.8-Flash',
       name: 'Qwen 3.8 Flash',
       tagline: 'Strong multilingual. Works well with Tagalog / Filipino.',
       family: 'Qwen',
+      supportsVision: true,
     ),
     ModelPreset(
       id: 'Qwen/Qwen3.7-Flash',
       name: 'Qwen 3.7 Flash',
       tagline: 'Previous generation Qwen. Cheaper, still capable.',
       family: 'Qwen',
+      supportsVision: true,
     ),
     ModelPreset(
       id: 'deepseek/deepseek-v4-flash',
@@ -155,54 +164,65 @@ const Map<AIProvider, List<ModelPreset>> kModelPresetsByProvider = {
       name: 'MiniMax M3 (free)',
       tagline: 'Top-tier reasoning. 1M context. Free.',
       family: 'MiniMax',
+      isFree: true,
     ),
     ModelPreset(
       id: 'qwen/qwen3.8-flash',
       name: 'Qwen 3.8 Flash (free)',
       tagline: 'Qwen multimodal reasoning. Fast and capable, free tier.',
       family: 'Qwen',
+      isFree: true,
+      supportsVision: true,
     ),
     ModelPreset(
       id: 'qwen/qwen3.7-flash',
       name: 'Qwen 3.7 Flash (free)',
       tagline: 'Cheapest free Qwen Flash. Great everyday default.',
       family: 'Qwen',
+      isFree: true,
+      supportsVision: true,
     ),
     ModelPreset(
       id: 'nvidia/nemotron-3-ultra-550b-a55b:free',
       name: 'Nemotron 3 Ultra (free)',
       tagline: 'NVIDIA flagship. 1M context. Strong reasoning.',
       family: 'NVIDIA',
+      isFree: true,
     ),
     ModelPreset(
       id: 'nvidia/nemotron-3.5-lightning:free',
       name: 'Nemotron 3.5 Lightning (free)',
       tagline: 'Lighter NVIDIA MoE. Fast agentic throughput.',
       family: 'NVIDIA',
+      isFree: true,
     ),
     ModelPreset(
       id: 'z-ai/glm-5.2:free',
       name: 'GLM 5.2 (free)',
       tagline: "Z.ai's flagship. Bilingual EN/CN.",
       family: 'Z.ai',
+      isFree: true,
     ),
     ModelPreset(
       id: 'thinkingmachines/inkling:free',
       name: 'Inkling (free)',
       tagline: "Thinking Machines' open-weights model.",
       family: 'Thinking Machines',
+      isFree: true,
     ),
     ModelPreset(
       id: 'poolside/laguna-s-2.1:free',
       name: 'Laguna S 2.1 (free)',
       tagline: "Poolside's model. Tuned for code + reasoning.",
       family: 'Poolside',
+      isFree: true,
     ),
     ModelPreset(
       id: 'liquid/lfm-2.5-2.6b:free',
       name: 'LFM 2.5 2.6B (free)',
       tagline: 'Tiny model. Fastest responses, basic reasoning.',
       family: 'LiquidAI',
+      isFree: true,
     ),
   ],
   AIProvider.opencode: [],
@@ -213,6 +233,8 @@ const Map<AIProvider, List<ModelPreset>> kModelPresetsByProvider = {
       tagline:
           "Google's free stable Flash. Default — fast multimodal with strong reasoning.",
       family: 'Google',
+      isFree: true,
+      supportsVision: true,
     ),
     ModelPreset(
       id: 'gemini-3-flash-preview',
@@ -220,25 +242,30 @@ const Map<AIProvider, List<ModelPreset>> kModelPresetsByProvider = {
       tagline:
           'Newest preview. Free tier but model name may change without notice.',
       family: 'Google',
+      isFree: true,
+      supportsVision: true,
     ),
     ModelPreset(
       id: 'gemini-3.5-flash-lite',
       name: 'Gemini 3.5 Flash Lite',
-      tagline:
-          'Cheapest Flash. Fastest responses for short, simple answers.',
+      tagline: 'Cheapest Flash. Fastest responses for short, simple answers.',
       family: 'Google',
+      isFree: true,
+      supportsVision: true,
     ),
     ModelPreset(
       id: 'gemini-3.1-flash-lite',
       name: 'Gemini 3.1 Flash Lite',
-      tagline:
-          'Frontier-class perf at lite cost. Free tier, 1M context.',
+      tagline: 'Frontier-class perf at lite cost. Free tier, 1M context.',
       family: 'Google',
+      isFree: true,
+      supportsVision: true,
     ),
   ],
 };
 
-final List<ModelPreset> kModelPresets = kModelPresetsByProvider[AIProvider.commandcode]!;
+final List<ModelPreset> kModelPresets =
+    kModelPresetsByProvider[AIProvider.commandcode]!;
 
 List<ModelPreset> presetsFor(AIProvider provider) =>
     kModelPresetsByProvider[provider] ?? const [];

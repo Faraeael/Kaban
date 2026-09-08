@@ -43,9 +43,9 @@ class _TestApiButtonState extends State<TestApiButton> {
     final config = kAIProviders[widget.provider];
     if (config == null) {
       setState(() => _state = const _TestDone(CoachTestResult.failure(
-        'Unknown provider.',
-        durationMs: 0,
-      )));
+            'Unknown provider.',
+            durationMs: 0,
+          )));
       return;
     }
     final result = await _tester.ping(
@@ -103,7 +103,8 @@ class _StatusCard extends StatelessWidget {
     final bg = ok
         ? t.colorScheme.primaryContainer.withValues(alpha: 0.55)
         : t.colorScheme.errorContainer.withValues(alpha: 0.55);
-    final fg = ok ? t.colorScheme.onPrimaryContainer : t.colorScheme.onErrorContainer;
+    final fg =
+        ok ? t.colorScheme.onPrimaryContainer : t.colorScheme.onErrorContainer;
     final icon = ok ? Icons.check_circle_rounded : Icons.error_rounded;
 
     return Container(

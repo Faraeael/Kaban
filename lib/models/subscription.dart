@@ -79,7 +79,8 @@ class Subscription {
         name: m['name'] as String,
         amount: (m['amount'] as num).toDouble(),
         cadence: Cadence.values.byName(m['cadence'] as String),
-        nextBillingDate: DateTime.fromMillisecondsSinceEpoch(m['next_billing_date'] as int),
+        nextBillingDate:
+            DateTime.fromMillisecondsSinceEpoch(m['next_billing_date'] as int),
         category: m['category'] as String,
         walletId: m['wallet_id'] as String,
       );

@@ -61,8 +61,8 @@ void main() {
     expect(result.created, 2); // Sep 1 8:00 and Sep 2 8:00 are both due by 9:00
     expect(result.entryNames, ['Commute']);
 
-    final txns =
-        await rawDb.query('transactions', where: 'wallet_id = ?', whereArgs: ['w1']);
+    final txns = await rawDb
+        .query('transactions', where: 'wallet_id = ?', whereArgs: ['w1']);
     expect(txns, hasLength(2));
     expect(txns.first['amount'], 100);
     expect(txns.first['note'], 'Commute');

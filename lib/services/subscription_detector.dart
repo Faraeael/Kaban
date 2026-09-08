@@ -21,13 +21,18 @@ class SubscriptionSuggestion {
 }
 
 class SubscriptionDetector {
-  List<SubscriptionSuggestion> detect(List<Transaction> txns, {int windowDays = 90}) {
+  List<SubscriptionSuggestion> detect(List<Transaction> txns,
+      {int windowDays = 90}) {
     final cutoff = DateTime.now().subtract(Duration(days: windowDays));
-    final recent = txns.where((t) => t.date.isAfter(cutoff) && t.type != TransactionType.transfer).toList();
+    final recent = txns
+        .where(
+            (t) => t.date.isAfter(cutoff) && t.type != TransactionType.transfer)
+        .toList();
 
     final byMerchant = <String, List<Transaction>>{};
     for (final t in recent) {
-      final key = t.category == 'Subscriptions' ? t.category : t.note ?? t.category;
+      final key =
+          t.category == 'Subscriptions' ? t.category : t.note ?? t.category;
       byMerchant.putIfAbsent(key, () => []).add(t);
     }
 
@@ -71,7 +76,8 @@ class SubscriptionDetector {
 
   double _variance(List<double> values, double mean) {
     if (values.isEmpty) return 0;
-    final sumSq = values.map((v) => (v - mean) * (v - mean)).reduce((a, b) => a + b);
+    final sumSq =
+        values.map((v) => (v - mean) * (v - mean)).reduce((a, b) => a + b);
     return sumSq / values.length;
   }
 }

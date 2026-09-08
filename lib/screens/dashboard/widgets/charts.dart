@@ -57,7 +57,8 @@ class SpendingPieChart extends StatelessWidget {
                                 width: 10,
                                 height: 10,
                                 decoration: BoxDecoration(
-                                  color: _chartPalette[i % _chartPalette.length],
+                                  color:
+                                      _chartPalette[i % _chartPalette.length],
                                   shape: BoxShape.circle,
                                 ),
                               ),
@@ -90,8 +91,7 @@ class SpendingPieChart extends StatelessWidget {
   List<PieChartSectionData> _sections(
       List<MapEntry<String, double>> entries, double total) {
     final top = entries.take(6).toList();
-    final restValue =
-        entries.skip(6).fold<double>(0, (s, e) => s + e.value);
+    final restValue = entries.skip(6).fold<double>(0, (s, e) => s + e.value);
     if (restValue > 0) {
       top.add(MapEntry('Other', restValue));
     }
@@ -141,7 +141,8 @@ class CashflowBarChart extends StatelessWidget {
     return _ChartCard(
       title: 'Last 6 months',
       child: maxVal <= 0
-          ? const _ChartHint(text: 'Log income and expenses to see your cashflow.')
+          ? const _ChartHint(
+              text: 'Log income and expenses to see your cashflow.')
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -178,8 +179,7 @@ class CashflowBarChart extends StatelessWidget {
                             getTitlesWidget: (value, meta) => Padding(
                               padding: const EdgeInsets.only(top: 6),
                               child: Text(
-                                DateFormat('MMM')
-                                    .format(months[value.toInt()]),
+                                DateFormat('MMM').format(months[value.toInt()]),
                                 style: t.textTheme.labelSmall?.copyWith(
                                   color: t.colorScheme.onSurfaceVariant,
                                 ),
@@ -202,7 +202,8 @@ class CashflowBarChart extends StatelessWidget {
                               ),
                               BarChartRodData(
                                 toY: expenses[i],
-                                color: t.colorScheme.error.withValues(alpha: 0.75),
+                                color:
+                                    t.colorScheme.error.withValues(alpha: 0.75),
                                 width: 10,
                                 borderRadius: BorderRadius.circular(4),
                               ),

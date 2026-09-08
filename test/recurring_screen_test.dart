@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:finance_tracker/models/recurring_transaction.dart';
@@ -18,6 +18,7 @@ class FakeRecurringNotifier extends StateNotifier<List<RecurringTransaction>>
   Future<void> add(RecurringTransaction r) async {
     state = [...state, r];
   }
+
   @override
   Future<void> update(RecurringTransaction r) async {}
   @override
@@ -33,6 +34,7 @@ class FakeSubscriptionNotifier extends StateNotifier<List<Subscription>>
   Future<void> add(Subscription s) async {
     state = [...state, s];
   }
+
   @override
   Future<void> update(Subscription s) async {}
   @override
@@ -74,8 +76,7 @@ Widget buildTestWidget({required Widget child}) {
       subscriptionListProvider
           .overrideWith((ref) => FakeSubscriptionNotifier()),
       walletListProvider.overrideWith((ref) => FakeWalletNotifier()),
-      transactionListProvider
-          .overrideWith((ref) => FakeTransactionNotifier()),
+      transactionListProvider.overrideWith((ref) => FakeTransactionNotifier()),
     ],
     child: MaterialApp(
       home: child,

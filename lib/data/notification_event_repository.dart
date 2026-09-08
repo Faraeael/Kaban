@@ -30,7 +30,8 @@ class NotificationEventRepository {
 
   Future<void> insert(NotificationEvent e) async {
     final db = await _appDb.db;
-    await db.insert('notification_events', e.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('notification_events', e.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> deleteAll() async {

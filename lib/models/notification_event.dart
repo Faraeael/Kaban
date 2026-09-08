@@ -29,13 +29,16 @@ class NotificationEvent {
         'transaction_id': transactionId,
       };
 
-  factory NotificationEvent.fromMap(Map<String, Object?> m) => NotificationEvent(
+  factory NotificationEvent.fromMap(Map<String, Object?> m) =>
+      NotificationEvent(
         id: m['id'] as String,
         packageName: m['package_name'] as String,
         rawTitle: m['raw_title'] as String,
         rawText: m['raw_text'] as String,
-        receivedAt: DateTime.fromMillisecondsSinceEpoch(m['received_at'] as int),
-        parseStatus: NotificationParseStatus.values.byName(m['parse_status'] as String),
+        receivedAt:
+            DateTime.fromMillisecondsSinceEpoch(m['received_at'] as int),
+        parseStatus:
+            NotificationParseStatus.values.byName(m['parse_status'] as String),
         transactionId: m['transaction_id'] as String?,
       );
 }

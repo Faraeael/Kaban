@@ -53,21 +53,24 @@ class TransactionRepository {
 
   Future<void> insert(Transaction t) async {
     final db = await _appDb.db;
-    await db.insert('transactions', t.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('transactions', t.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> insertMany(List<Transaction> txns) async {
     final db = await _appDb.db;
     final batch = db.batch();
     for (final t in txns) {
-      batch.insert('transactions', t.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      batch.insert('transactions', t.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace);
     }
     await batch.commit(noResult: true);
   }
 
   Future<void> update(Transaction t) async {
     final db = await _appDb.db;
-    await db.update('transactions', t.toMap(), where: 'id = ?', whereArgs: [t.id]);
+    await db
+        .update('transactions', t.toMap(), where: 'id = ?', whereArgs: [t.id]);
   }
 
   Future<void> delete(String id) async {
@@ -77,6 +80,7 @@ class TransactionRepository {
 
   Future<void> deleteByTransferPair(String pairId) async {
     final db = await _appDb.db;
-    await db.delete('transactions', where: 'transfer_pair_id = ?', whereArgs: [pairId]);
+    await db.delete('transactions',
+        where: 'transfer_pair_id = ?', whereArgs: [pairId]);
   }
 }

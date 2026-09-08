@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 class SuggestedPrompts extends StatelessWidget {
   final List<String> prompts;
   final void Function(String) onTap;
-  const SuggestedPrompts({super.key, required this.prompts, required this.onTap});
+  const SuggestedPrompts(
+      {super.key, required this.prompts, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +17,8 @@ class SuggestedPrompts extends StatelessWidget {
         children: [
           Text(
             'Try asking',
-            style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant),
+            style: t.textTheme.bodySmall
+                ?.copyWith(color: t.colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 6),
           Wrap(

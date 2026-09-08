@@ -25,9 +25,7 @@ class QuickPresetNotifier extends StateNotifier<List<QuickPreset>> {
     final raw = prefs.getStringList(_kPrefsKey);
     if (raw != null && raw.isNotEmpty) {
       try {
-        state = raw
-            .map((s) => QuickPreset.fromJson(s))
-            .toList();
+        state = raw.map((s) => QuickPreset.fromJson(s)).toList();
       } catch (_) {
         // corrupt data — fall back to defaults
         state = kDefaultQuickPresets;

@@ -49,7 +49,8 @@ class InsightBanner extends StatelessWidget {
               children: [
                 Text(
                   insight.title,
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color),
+                  style: TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w700, color: color),
                 ),
                 const SizedBox(height: 2),
                 Text(

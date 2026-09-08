@@ -8,18 +8,21 @@ class SubscriptionRepository {
 
   Future<List<Subscription>> listAll() async {
     final db = await _appDb.db;
-    final rows = await db.query('subscriptions', orderBy: 'next_billing_date ASC');
+    final rows =
+        await db.query('subscriptions', orderBy: 'next_billing_date ASC');
     return rows.map(Subscription.fromMap).toList();
   }
 
   Future<void> insert(Subscription sub) async {
     final db = await _appDb.db;
-    await db.insert('subscriptions', sub.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('subscriptions', sub.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> update(Subscription sub) async {
     final db = await _appDb.db;
-    await db.update('subscriptions', sub.toMap(), where: 'id = ?', whereArgs: [sub.id]);
+    await db.update('subscriptions', sub.toMap(),
+        where: 'id = ?', whereArgs: [sub.id]);
   }
 
   Future<void> delete(String id) async {

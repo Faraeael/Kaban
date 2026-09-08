@@ -14,7 +14,8 @@ class ChatRepository {
 
   Future<void> insert(ChatMessage m) async {
     final db = await _appDb.db;
-    await db.insert('chat_messages', m.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('chat_messages', m.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> clear() async {

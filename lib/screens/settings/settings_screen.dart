@@ -118,6 +118,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ? settings.aiModel
                   : (kAIProviders[settings.aiProvider]!.defaultModel ?? ''),
               provider: settings.aiProvider,
+              apiKey: settings.aiApiKey,
+              baseUrl: settings.aiBaseUrl,
               onPick: (id) {
                 _model.text = id;
                 notifier.update(settings.copyWith(aiModel: id));
@@ -664,11 +666,15 @@ class _ModelField extends StatelessWidget {
   final String currentModelId;
   final ValueChanged<String> onPick;
   final AIProvider provider;
+  final String? apiKey;
+  final String? baseUrl;
   final ThemeData t;
   const _ModelField({
     required this.currentModelId,
     required this.onPick,
     required this.provider,
+    this.apiKey,
+    this.baseUrl,
     required this.t,
   });
 
@@ -693,6 +699,9 @@ class _ModelField extends StatelessWidget {
           onSelected: onPick,
           presets: presets,
           headerHint: hint,
+          provider: provider,
+          apiKey: apiKey,
+          baseUrl: baseUrl,
         ),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
