@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(mkdir C:\\tmp_flutter_backup 2>nul & copy \"C:\\Project\\finance_tracker\\android\\app\\src\\main\\AndroidManifest.xml\" \"C:\\tmp_flutter_backup\\AndroidManifest.xml.bak\" & copy \"C:\\Project\\finance_tracker\\android\\app\\src\\main\\kotlin\\com\\example\\finance_tracker\\MainActivity.kt\" \"C:\\tmp_flutter_backup\\MainActivity.kt.bak\" & copy \"C:\\Project\\finance_tracker\\android\\app\\src\\main\\kotlin\\com\\example\\finance_tracker\\FinanceNotificationListener.kt\" \"C:\\tmp_flutter_backup\\FinanceNotificationListener.kt.bak\")",
+      "Shell(flutter:*)",
+      "Shell(findstr:*)",
+      "Shell(more:*)",
+      "Shell(node \"C:/Users/Pia Romualdo/.agents/skills/impeccable/scripts/context.mjs\")",
+      "Shell(dir:*)",
+      "Shell(powershell -NoProfile -Command \"(Get-Content lib\\services\\ai\\local_coach.dart) -replace '</old_string>','' -replace '</new_string>','' | Set-Content lib\\services\\ai\\local_coach.dart\")",
+      "Shell(del:*)",
+      "Shell(powershell -NoProfile -Command \"(Get-Content lib\\screens\\onboarding\\onboarding_screen.dart) -replace 'TestApiButton\\(\\n baseUrl:','TestApiButton(\\n provider: provider,\\n baseUrl:' | Set-Content lib\\screens\\onboarding\\onboarding_screen.dart\")",
+      "Shell(powershell -NoProfile -Command \"(Get-Content lib\\screens\\settings\\settings_screen.dart) -replace 'TestApiButton\\(\\n baseUrl:','TestApiButton(\\n provider: settings.aiProvider,\\n baseUrl:' | Set-Content lib\\screens\\settings\\settings_screen.dart\")",
+      "Shell(where:*)",
+      "Shell(where.exe:*)",
+      "Shell(powershell.exe:*)",
+      "Shell(curl.exe:*)",
+      "Shell(dart:*)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}

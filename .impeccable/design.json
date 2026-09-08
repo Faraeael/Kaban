@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-03T00:00:00Z",
+  "title": "Design System: Finance Tracker",
+  "extensions": {
+    "colorMeta": {
+      "verdant-ledger": {
+        "role": "primary",
+        "displayName": "Verdant Ledger",
+        "canonical": "#1B7F5F",
+        "tonalRamp": [
+          "#0B3A2B", "#105540", "#1B7F5F", "#2E9E7C", "#4DBF9A", "#7AD3B5", "#A9E5D0", "#D6F3E8"
+        ]
+      },
+      "ledger-paper": {
+        "role": "neutral",
+        "displayName": "Ledger Paper",
+        "canonical": "#F1F5F4",
+        "tonalRamp": [
+          "#1A211F", "#27302D", "#39443F", "#4E5B55", "#68766F", "#87938D", "#AAB4AF", "#F1F5F4"
+        ]
+      },
+      "warn-amber": {
+        "role": "secondary",
+        "displayName": "Warn Amber",
+        "canonical": "#D97706",
+        "tonalRamp": [
+          "#4A2A00", "#6B3F00", "#8F5400", "#B36A00", "#D97706", "#E9953B", "#F2B56E", "#FBDBA8"
+        ]
+      },
+      "overdraft-red": {
+        "role": "tertiary",
+        "displayName": "Overdraft Red",
+        "canonical": "#DC2626",
+        "tonalRamp": [
+          "#4A0A0A", "#6B1010", "#8F1717", "#B31E1E", "#DC2626", "#E85B5B", "#F29494", "#FBD3D3"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Net worth and dashboard headline numbers only." },
+      "headline": { "displayName": "Headline", "purpose": "Section-level money figures and onboarding headers." },
+      "title": { "displayName": "Title", "purpose": "Card titles, sheet titles, list item names." },
+      "body": { "displayName": "Body", "purpose": "Paragraphs, descriptions, chat messages." },
+      "label": { "displayName": "Label", "purpose": "Structural uppercase data labels — never prose." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default easing for state transitions and sheet slides." },
+      { "name": "ease-out-cubic", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Page transitions in onboarding." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single main action on a screen or sheet.",
+      "html": "<button class=\"ds-btn-primary\">Continue</button>",
+      "css": ".ds-btn-primary { background: #1B7F5F; color: #ffffff; border: none; border-radius: 12px; padding: 14px 20px; font-family: system-ui, sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0; transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-primary:hover { opacity: 0.9; } .ds-btn-primary:focus-visible { outline: 2px solid #1B7F5F; outline-offset: 2px; }"
+    },
+    {
+      "name": "Outlined Button",
+      "kind": "button",
+      "refersTo": "button-outlined",
+      "description": "Cancel, back, and secondary actions.",
+      "html": "<button class=\"ds-btn-outlined\">Cancel</button>",
+      "css": ".ds-btn-outlined { background: transparent; color: #1B7F5F; border: 1px solid rgba(27, 127, 95, 0.5); border-radius: 12px; padding: 12px 16px; font-family: system-ui, sans-serif; font-size: 14px; font-weight: 600; transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-outlined:hover { background: rgba(27, 127, 95, 0.08); } .ds-btn-outlined:focus-visible { outline: 2px solid #1B7F5F; outline-offset: 2px; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card-surface",
+      "description": "The standard full-width content container.",
+      "html": "<div class=\"ds-card\"><span class=\"ds-card-label\">THIS MONTH</span><span class=\"ds-card-value\">₱24,500</span></div>",
+      "css": ".ds-card { background: #F1F5F4; border-radius: 16px; padding: 16px; font-family: system-ui, sans-serif; display: flex; flex-direction: column; gap: 6px; } .ds-card-label { font-size: 12px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: #68766F; } .ds-card-value { font-size: 22px; font-weight: 800; letter-spacing: -0.4px; color: #1A211F; }"
+    },
+    {
+      "name": "Insight Banner",
+      "kind": "card",
+      "description": "Severity-tinted inline status banner.",
+      "html": "<div class=\"ds-banner\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"#D97706\"><path d=\"M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1 5h2v7h-2V7Zm0 9h2v2h-2v-2Z\"/></svg><div><div class=\"ds-banner-title\">Budget warning</div><div class=\"ds-banner-detail\">Food is 15% over your monthly cap.</div></div></div>",
+      "css": ".ds-banner { background: rgba(217, 119, 6, 0.08); border: 1px solid rgba(217, 119, 6, 0.25); border-radius: 12px; padding: 14px; display: flex; gap: 10px; align-items: flex-start; font-family: system-ui, sans-serif; } .ds-banner-title { font-size: 13px; font-weight: 700; color: #D97706; } .ds-banner-detail { font-size: 12px; line-height: 1.4; color: #27302D; }"
+    },
+    {
+      "name": "Wallet Balance Card",
+      "kind": "card",
+      "description": "Compact horizontal wallet tile with brand-colored logo chip.",
+      "html": "<div class=\"ds-wallet\"><span class=\"ds-wallet-logo\">BDO</span><div><div class=\"ds-wallet-name\">BDO</div><div class=\"ds-wallet-balance\">₱5,000</div></div></div>",
+      "css": ".ds-wallet { background: #F1F5F4; border-radius: 14px; padding: 12px; width: 130px; display: flex; gap: 8px; align-items: center; font-family: system-ui, sans-serif; } .ds-wallet-logo { background: #0033A0; color: #ffffff; border-radius: 8px; padding: 4px 8px; font-size: 11px; font-weight: 700; } .ds-wallet-name { font-size: 12px; font-weight: 600; color: #1A211F; } .ds-wallet-balance { font-size: 14px; font-weight: 700; color: #1A211F; }"
+    },
+    {
+      "name": "Chip",
+      "kind": "chip",
+      "description": "Suggestion and tag pill.",
+      "html": "<span class=\"ds-chip\">What should I pay first?</span>",
+      "css": ".ds-chip { background: rgba(167, 175, 171, 0.6); border-radius: 999px; padding: 8px 12px; font-family: system-ui, sans-serif; font-size: 12px; color: #27302D; }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "description": "Filled text field with muted prefix icon.",
+      "html": "<div class=\"ds-input\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"#68766F\"><path d=\"M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12Z\"/></svg><input placeholder=\"Amount\"/></div>",
+      "css": ".ds-input { background: rgba(167, 175, 171, 0.4); border-radius: 12px; padding: 14px; display: flex; gap: 8px; align-items: center; font-family: system-ui, sans-serif; } .ds-input input { border: none; background: transparent; font-size: 14px; color: #1A211F; outline: none; width: 100%; } .ds-input:focus-within { outline: 2px solid #1B7F5F; outline-offset: -2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Ledger",
+    "overview": "Finance Tracker looks the way a well-kept ledger feels: calm, precise, and honest. The interface is a Material 3 surface system seeded from one deep green — a quiet signal that money is being handled carefully, not a marketing color. Nothing shouts; hierarchy comes from weight, size, and spacing, and color appears only where it means something: income, overspend, warnings, brand.\n\nThe system is tonal, not outlined. Surfaces are distinguished by subtle lightness steps, and borders appear only when they carry meaning — a selected state, a warning, a wallet's brand color. Depth is flat by design: no shadows, no elevation theater; the screen reads as a single calm document.\n\nThe personality is restrained and quiet. Buttons are confident but unadorned. Typography leads — tight, bold numbers for balances, small-caps labels for structure, and generous whitespace between groups. The result should feel like a well-maintained record book, not a banking app's dashboard.",
+    "keyCharacteristics": [
+      "One accent color, used sparingly; everything else is tonal gray-green",
+      "Flat, borderless surfaces; borders are semantic, not decorative",
+      "Numbers carry the page — big, bold, tabular, peso-formatted",
+      "Quiet motion: 150-280ms ease-out transitions, never attention-seeking",
+      "Material 3 components, but tamed: no shadows, no gradients, no glass"
+    ],
+    "rules": [
+      { "name": "The One Green Rule", "body": "Verdant Ledger is the only accent color on any screen. Amber and red appear only when the data demands them. If a screen has three accent colors, something is wrong.", "section": "colors" },
+      { "name": "The Meaningful Border Rule", "body": "A border only exists to carry meaning — selection, warning, or a wallet's brand color. Never draw a border as decoration around a resting card.", "section": "colors" },
+      { "name": "The Number-First Rule", "body": "When a screen shows a money figure, the number is the largest thing on it. Labels explain the number; they never compete with it.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest. If a future component needs a shadow, it must earn it by being genuinely floating (a menu, a tooltip) — and even then it should be a soft offset blur, never a hard halo.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do lead every data screen with its number, biggest and boldest.",
+      "Do use 12-16px radii, 16px card padding, and the 12px spacing rhythm — never invent new sizes for the same component class.",
+      "Do put the one primary action in a filled Verdant Ledger button and everything else outlined.",
+      "Do keep motion to 150-280ms ease-out transitions on state changes only.",
+      "Do use the official bank/e-wallet SVG logos wherever a wallet appears (picker, card, dropdown)."
+    ],
+    "donts": [
+      "Don't add shadows, gradients, glass, or decorative borders — depth is tonal layering, nothing else.",
+      "Don't use accent colors for decoration; Verdant Ledger is for money-in and action, Overdraft Red for money-out and danger, Warn Amber for warnings only.",
+      "Don't stack cards inside cards — one container per surface level.",
+      "Don't place text over a bank logo; logos sit on neutral surfaces with padding.",
+      "Don't invent kickers above headings — the heading carries its own weight; uppercase labels are for data, not titles."
+    ]
+  }
+}
