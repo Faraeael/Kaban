@@ -63,6 +63,9 @@ class QuickFareWidgetProvider : AppWidgetProvider() {
             val prefs = context.getSharedPreferences("finance_tracker", Context.MODE_PRIVATE)
             val views = RemoteViews(context.packageName, R.layout.widget_quick_fare)
 
+            views.setTextViewText(R.id.widget_title, "⚡ Quick Log")
+            views.setTextColor(R.id.widget_title, 0xFFFFFFFF.toInt())
+
             // Open app Intent
             val openIntent = context.packageManager
                 .getLaunchIntentForPackage(context.packageName)
@@ -77,6 +80,7 @@ class QuickFareWidgetProvider : AppWidgetProvider() {
             )
 
             for (i in 0..3) {
+                views.setInt(buttonIds[i], "setBackgroundResource", R.drawable.widget_chip_bg)
                 var label = prefs.getString("preset_${i}_label", null)
                 var amount = prefs.getFloat("preset_${i}_amount", -1f)
                 var icon = prefs.getString("preset_${i}_icon", null)
@@ -146,8 +150,8 @@ class QuickFareWidgetProvider : AppWidgetProvider() {
                 putExtra(QuickLogReceiver.EXTRA_WALLET_ID, walletId)
                 putExtra(QuickLogReceiver.EXTRA_ICON, icon)
                 // Unique request code per widget instance + slot
-                putExtra("widget_id", widgetId)
-                putExtra("slot", index)
+                putExtra(QuickLogReceiver.EXTRA_WIDGET_ID, widgetId)
+                putExtra(QuickLogReceiver.EXTRA_SLOT, index)
             }
             return PendingIntent.getBroadcast(
                 context,
