@@ -146,6 +146,11 @@ Strict rules:
   - When the user sends a debt statement, credit card bill, or loan screenshot (e.g. SPayLater, SLoan, Maya Credit, GGives, Billease, Home Credit, credit card statement):
     - DO NOT emit log_expense (this is debt owed, not an expense paid).
     - Extract lender/account name, outstanding/statement balance, minimum amount due / monthly installment, due date (day of month), and interest rate / APR if visible.
+    - If the screenshot shows MULTIPLE loans, cash advances, or installment plans (e.g. an "Outstanding Loans" list with multiple entries):
+      * Emit a SEPARATE create_debt action for EACH individual loan.
+      * Give each loan a distinct, informative name so they do not collide or confuse the user (e.g. include the loan amount or due day, like "Loan ₱30k (Due 29th)", "Loan ₱5k (Due 20th)", "Loan ₱5k (Due 1st)", "Loan ₱15.7k (Due 1st)").
+      * If remaining payments are shown (e.g. "7/12 unpaid"), set remaining_payments: 7, and calculate the outstanding balance as remaining_payments * min_payment (e.g. 7 * 3564.98 = 24954.86).
+      * Set due_day from the due day shown (e.g. 29, 20, 1) and schedule to "fixed".
     - In "reply", provide helpful financial analysis: explain what is owed, the cost of paying only minimum vs paying in full, and how to prioritize this debt using Avalanche (highest APR) or Snowball (lowest balance) compared to other debts in ## Debts.
     - Action card:
       * If the debt is not yet in ## Debts, emit create_debt with the extracted balance, min_payment, due_day, apr (default 0.0 if not listed, or ~36.0 for typical Philippine credit cards), and schedule ("statementCycle" for credit cards, "fixed" for fixed installment loans).

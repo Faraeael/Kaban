@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../models/chat_message.dart';
@@ -12,8 +13,8 @@ class ChatBubble extends StatelessWidget {
   final List<String> warnings;
   final String? selectedWalletId;
   final void Function(String walletId) onWalletChanged;
-  final void Function(int actionIndex) onConfirmAction;
-  final void Function(int actionIndex) onDismissAction;
+  final void Function(CoachAction action) onConfirmAction;
+  final void Function(CoachAction action) onDismissAction;
 
   const ChatBubble({
     super.key,
@@ -28,8 +29,41 @@ class ChatBubble extends StatelessWidget {
   });
 
   static void _noopWallet(String _) {}
-  static void _noopConfirm(int _) {}
-  static void _noopDismiss(int _) {}
+  static void _noopConfirm(CoachAction _) {}
+  static void _noopDismiss(CoachAction _) {}
+
+  void _showFullImage(BuildContext context, String path) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(12),
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            InteractiveViewer(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.file(File(path), fit: BoxFit.contain),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Material(
+                color: Colors.black54,
+                shape: const CircleBorder(),
+                child: IconButton(
+                  icon: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,13 +91,57 @@ class ChatBubble extends StatelessWidget {
                 ),
               ),
               child: isUser
-                  ? Text(
-                      message.content,
-                      style: TextStyle(
-                        color: t.colorScheme.onPrimary,
-                        fontSize: 14,
-                        height: 1.4,
-                      ),
+                  ? Builder(
+                      builder: (context) {
+                        final rawText = message.content.trim();
+                        final displayText = (message.imagePath != null &&
+                                rawText.startsWith('📷 [Receipt attached]\n'))
+                            ? rawText
+                                .substring('📷 [Receipt attached]\n'.length)
+                                .trim()
+                            : rawText;
+                        final hasValidImage = message.imagePath != null &&
+                            File(message.imagePath!).existsSync();
+                        final showText = displayText.isNotEmpty &&
+                            (!displayText.startsWith('📷 [Scanned') ||
+                                !hasValidImage);
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (hasValidImage) ...[
+                              GestureDetector(
+                                onTap: () => _showFullImage(
+                                    context, message.imagePath!),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxHeight: 260,
+                                      maxWidth: 240,
+                                    ),
+                                    child: Image.file(
+                                      File(message.imagePath!),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              if (showText) const SizedBox(height: 8),
+                            ],
+                            if (showText)
+                              Text(
+                                displayText,
+                                style: TextStyle(
+                                  color: t.colorScheme.onPrimary,
+                                  fontSize: 14,
+                                  height: 1.4,
+                                ),
+                              ),
+                          ],
+                        );
+                      },
                     )
                   : MarkdownBody(
                       data: message.content,
@@ -155,14 +233,14 @@ class ChatBubble extends StatelessWidget {
                 ),
               ),
           if (hasActions)
-            for (var i = 0; i < actions.length; i++)
+            for (final action in actions)
               ActionCard(
-                action: actions[i],
+                action: action,
                 wallets: wallets,
                 selectedWalletId: selectedWalletId,
                 onWalletChanged: onWalletChanged,
-                onConfirm: () => onConfirmAction(i),
-                onDismiss: () => onDismissAction(i),
+                onConfirm: () => onConfirmAction(action),
+                onDismiss: () => onDismissAction(action),
               ),
         ],
       ),

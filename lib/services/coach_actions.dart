@@ -1,9 +1,12 @@
 import 'dart:math';
+import 'package:uuid/uuid.dart';
 import '../models/debt.dart';
 import '../models/goal.dart';
 import '../models/recurring_transaction.dart';
 import '../models/transaction.dart';
 import '../models/wallet.dart';
+
+const _uuid = Uuid();
 
 sealed class CoachAction {
   const CoachAction();
@@ -658,7 +661,7 @@ class CoachActionParser {
         : DebtSchedule.none;
 
     return CreateDebtAction(Debt(
-      id: 'parsed_${DateTime.now().millisecondsSinceEpoch}',
+      id: _uuid.v4(),
       name: name,
       balance: balance,
       apr: apr,
@@ -683,7 +686,7 @@ class CoachActionParser {
       final target = _parseAmount(match.group(2) ?? '');
       if (name.isNotEmpty && target > 0) {
         return CreateGoalAction(Goal(
-          id: 'parsed_${DateTime.now().millisecondsSinceEpoch}',
+          id: _uuid.v4(),
           name: name,
           target: target,
           saved: 0,
@@ -1000,7 +1003,7 @@ CoachAction? parseJsonAction(Map<String, dynamic> m) {
         }
 
         final debt = Debt(
-          id: 'action_${DateTime.now().millisecondsSinceEpoch}',
+          id: _uuid.v4(),
           name: name,
           balance: balance,
           apr: apr,
@@ -1073,7 +1076,7 @@ CoachAction? parseJsonAction(Map<String, dynamic> m) {
           return null;
         }
         return CreateGoalAction(Goal(
-          id: 'goal_${DateTime.now().millisecondsSinceEpoch}',
+          id: _uuid.v4(),
           name: name,
           target: target,
           saved: _toDouble(m['saved'] ?? m['current_saved']) ?? 0.0,
@@ -1121,7 +1124,7 @@ CoachAction? parseJsonAction(Map<String, dynamic> m) {
             kind == 'income' ? TransactionType.income : TransactionType.expense;
         final category = (m['category'] as String?)?.trim() ?? 'Other';
         return CreateRecurringAction(RecurringTransaction(
-          id: 'rec_${DateTime.now().millisecondsSinceEpoch}',
+          id: _uuid.v4(),
           name: name,
           amount: amount,
           type: type,

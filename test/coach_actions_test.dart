@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:finance_tracker/models/chat_message.dart';
 import 'package:finance_tracker/services/coach_actions.dart';
 
 void main() {
@@ -337,6 +338,72 @@ Due date: 15th
       );
       expect(validated.actions.length, 1);
       expect(validated.warnings, isEmpty);
+    });
+
+    test('parseJsonAction generates unique UUIDs for batch loan payload', () {
+      final json1 = {
+        'type': 'create_debt',
+        'name': 'Loan ₱30k (Due 29th)',
+        'balance': 24954.86,
+        'min_payment': 3564.98,
+        'due_day': 29,
+        'remaining_payments': 7,
+      };
+      final json2 = {
+        'type': 'create_debt',
+        'name': 'Loan ₱5k (Due 20th)',
+        'balance': 5864.48,
+        'min_payment': 733.06,
+        'due_day': 20,
+        'remaining_payments': 8,
+      };
+      final json3 = {
+        'type': 'create_debt',
+        'name': 'Loan ₱5k (Due 1st)',
+        'balance': 6535.76,
+        'min_payment': 594.16,
+        'due_day': 1,
+        'remaining_payments': 11,
+      };
+      final json4 = {
+        'type': 'create_debt',
+        'name': 'Loan ₱15.7k (Due 1st)',
+        'balance': 22388.04,
+        'min_payment': 1865.67,
+        'due_day': 1,
+        'remaining_payments': 12,
+      };
+
+      final a1 = parseJsonAction(json1) as CreateDebtAction;
+      final a2 = parseJsonAction(json2) as CreateDebtAction;
+      final a3 = parseJsonAction(json3) as CreateDebtAction;
+      final a4 = parseJsonAction(json4) as CreateDebtAction;
+
+      final ids = {a1.debt.id, a2.debt.id, a3.debt.id, a4.debt.id};
+      expect(ids.length, 4,
+          reason: 'Every loan parsed in batch must have a distinct unique ID');
+      for (final id in ids) {
+        expect(id.contains('action_'), isFalse,
+            reason: 'ID should be a standard UUID, not timestamp-based');
+      }
+    });
+
+    test('ChatMessage serializes and deserializes imagePath correctly', () {
+      final msg = ChatMessage(
+        id: 'test-1',
+        role: ChatRole.user,
+        content: 'Check my loans',
+        timestamp: DateTime(2026, 3, 29, 14, 30),
+        imagePath: '/data/user/0/ph.kaban.app/app_flutter/chat_images/receipt.jpg',
+      );
+      final map = msg.toMap();
+      expect(map['image_path'],
+          '/data/user/0/ph.kaban.app/app_flutter/chat_images/receipt.jpg');
+
+      final restored = ChatMessage.fromMap(map);
+      expect(restored.id, msg.id);
+      expect(restored.imagePath, msg.imagePath);
+      expect(restored.content, msg.content);
     });
   });
 }

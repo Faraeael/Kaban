@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   Database? _db;
-  static const int _dbVersion = 5;
+  static const int _dbVersion = 6;
 
   /// Test seam: overrides the on-disk path for in-memory / ffi databases.
   String? overridePath;
@@ -119,7 +119,8 @@ class AppDatabase {
         id TEXT PRIMARY KEY,
         role TEXT NOT NULL,
         content TEXT NOT NULL,
-        timestamp INTEGER NOT NULL
+        timestamp INTEGER NOT NULL,
+        image_path TEXT
       )
     ''');
     batch.execute('''
@@ -216,6 +217,9 @@ class AppDatabase {
           "ALTER TABLE debts ADD COLUMN paid_off INTEGER NOT NULL DEFAULT 0");
       await db.execute("ALTER TABLE debts ADD COLUMN billing_day INTEGER");
       await db.execute("ALTER TABLE debts ADD COLUMN grace_days INTEGER");
+    }
+    if (oldVersion < 6) {
+      await db.execute("ALTER TABLE chat_messages ADD COLUMN image_path TEXT");
     }
   }
 

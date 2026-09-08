@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/chat_message.dart';
 import '../../models/debt.dart';
@@ -49,6 +51,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   final _input = TextEditingController();
   final _scroll = ScrollController();
   final _parser = CoachActionParser();
+  final _executingActions = <CoachAction>{};
   // Eager initial state: never write to this provider during build. The
   // session object itself is mutated in place (and repainted via setState),
   // so the provider is only a place to hold the object across tab switches.
@@ -216,8 +219,11 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   }
 
   Future<void> _applyAction(String messageId, CoachAction action) async {
-    final selectedWalletId = _session.selectedWallets[messageId];
-    switch (action) {
+    if (_executingActions.contains(action)) return;
+    _executingActions.add(action);
+    try {
+      final selectedWalletId = _session.selectedWallets[messageId];
+      switch (action) {
       case LogTransactionAction a:
         final wallets = ref.read(walletListProvider);
         final vis = wallets.where((w) => !w.archived).toList();
@@ -437,10 +443,12 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
           }
         }
       case CreateDebtAction a:
-        await ref.read(debtListProvider.notifier).add(a.debt);
-        _session.recentlyCreatedDebtNames.add(a.debt.name.toLowerCase().trim());
+        final debtToAdd = a.debt.copyWith(id: _uuid.v4());
+        await ref.read(debtListProvider.notifier).add(debtToAdd);
+        _session.recentlyCreatedDebtNames.add(debtToAdd.name.toLowerCase().trim());
       case CreateGoalAction a:
-        await ref.read(goalListProvider.notifier).add(a.goal);
+        final goalToAdd = a.goal.copyWith(id: _uuid.v4());
+        await ref.read(goalListProvider.notifier).add(goalToAdd);
       case UpdateGoalAction a:
         final goals = ref.read(goalListProvider);
         final query = a.name.trim().toLowerCase();
@@ -710,7 +718,10 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       );
     }
     _removeAction(messageId, action);
+  } finally {
+    _executingActions.remove(action);
   }
+}
 
   void _removeAction(String messageId, CoachAction action) {
     final list = _session.pendingActions[messageId];
@@ -763,6 +774,24 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       }
     }
 
+    String? savedImagePath;
+    if (imageBytes != null) {
+      try {
+        final appDir = await getApplicationDocumentsDirectory();
+        final imgDir = Directory('${appDir.path}/chat_images');
+        if (!await imgDir.exists()) {
+          await imgDir.create(recursive: true);
+        }
+        final ext = imageMime == 'image/png' ? 'png' : 'jpg';
+        final fileName = '${_uuid.v4()}.$ext';
+        final file = File('${imgDir.path}/$fileName');
+        await file.writeAsBytes(imageBytes);
+        savedImagePath = file.path;
+      } catch (e) {
+        debugPrint('Failed to persist chat image: $e');
+      }
+    }
+
     final messageContent = trimmed.isNotEmpty
         ? (hasImage ? '📷 [Receipt attached]\n$trimmed' : trimmed)
         : '📷 [Scanned receipt / screenshot]';
@@ -772,6 +801,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       role: ChatRole.user,
       content: messageContent,
       timestamp: DateTime.now(),
+      imagePath: savedImagePath,
     );
     await ref.read(chatListProvider.notifier).add(userMsg);
     _scrollToBottom(animate: true);
@@ -1156,24 +1186,8 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                           setState(() =>
                               _session.selectedWallets[msg.id] = walletId);
                         },
-                        onConfirmAction: (idx) {
-                          if (idx < actions.length) {
-                            _applyAction(msg.id, actions[idx]);
-                          }
-                        },
-                        onDismissAction: (idx) {
-                          if (idx < actions.length) {
-                            final list = List<CoachAction>.from(actions)
-                              ..removeAt(idx);
-                            setState(() {
-                              if (list.isEmpty) {
-                                _session.pendingActions.remove(msg.id);
-                              } else {
-                                _session.pendingActions[msg.id] = list;
-                              }
-                            });
-                          }
-                        },
+                        onConfirmAction: (act) => _applyAction(msg.id, act),
+                        onDismissAction: (act) => _removeAction(msg.id, act),
                       );
                     },
                   ),
