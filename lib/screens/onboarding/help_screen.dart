@@ -28,12 +28,12 @@ class _HelpScreenState extends State<HelpScreen> {
       icon: Icons.swap_horiz_rounded,
       task: 'I moved money between wallets',
       steps: [
-        'Go to Activity (bottom bar).',
-        'Tap the small swap icon above the + button.',
+        'Go to Activity or Dashboard.',
+        'Tap the transfer (swap) button in the top bar or Quick Actions.',
         'Pick the source and destination wallet, then the amount.',
         'Both balances update. Your net worth stays the same.',
       ],
-      navTo: '/transactions',
+      navTo: '/transactions/transfer',
     ),
     _HelpEntry(
       icon: Icons.receipt_long_rounded,
@@ -174,6 +174,7 @@ class _HelpScreenState extends State<HelpScreen> {
                     ? null
                     : IconButton(
                         icon: const Icon(Icons.close_rounded, size: 18),
+                        tooltip: 'Clear search',
                         onPressed: () {
                           _query.clear();
                           setState(() {});
@@ -232,7 +233,7 @@ class _HelpCard extends StatelessWidget {
               ),
               if (entry.navTo != null)
                 IconButton(
-                  tooltip: 'Open',
+                  tooltip: 'Go to ${entry.task}',
                   icon: const Icon(Icons.open_in_new_rounded, size: 18),
                   onPressed: () {
                     HapticFeedback.selectionClick();

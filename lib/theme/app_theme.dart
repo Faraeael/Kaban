@@ -66,6 +66,27 @@ class AppTheme {
           const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
         ),
       ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        elevation: 0,
+        showDragHandle: false,
+        constraints: BoxConstraints(maxWidth: 560),
+      ),
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: scheme.surface,
+        indicatorColor: scheme.primaryContainer,
+        selectedIconTheme: IconThemeData(color: scheme.onPrimaryContainer),
+        unselectedIconTheme: IconThemeData(color: scheme.onSurfaceVariant),
+        selectedLabelTextStyle: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: scheme.onSurface,
+        ),
+        unselectedLabelTextStyle: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: scheme.onSurfaceVariant,
+        ),
+      ),
     );
   }
 
@@ -132,6 +153,27 @@ class AppTheme {
         indicatorColor: scheme.primaryContainer,
         labelTextStyle: WidgetStateProperty.all(
           const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        elevation: 0,
+        showDragHandle: false,
+        constraints: BoxConstraints(maxWidth: 560),
+      ),
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: scheme.surface,
+        indicatorColor: scheme.primaryContainer,
+        selectedIconTheme: IconThemeData(color: scheme.onPrimaryContainer),
+        unselectedIconTheme: IconThemeData(color: scheme.onSurfaceVariant),
+        selectedLabelTextStyle: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: scheme.onSurface,
+        ),
+        unselectedLabelTextStyle: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: scheme.onSurfaceVariant,
         ),
       ),
     );

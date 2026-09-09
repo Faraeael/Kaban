@@ -98,8 +98,58 @@ class _AppShell extends StatelessWidget {
     final location = GoRouterState.of(context).matchedLocation;
     final idx = _indexFor(location);
     final t = Theme.of(context);
+    final isWide = MediaQuery.sizeOf(context).width >= 640;
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    final animatedChild = AnimatedSwitcher(
+      duration:
+          reduceMotion ? Duration.zero : const Duration(milliseconds: 200),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) =>
+          FadeTransition(opacity: animation, child: child),
+      child: KeyedSubtree(
+        key: ValueKey<String>(location),
+        child: child,
+      ),
+    );
+
+    if (isWide) {
+      return Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              selectedIndex: idx,
+              onDestinationSelected: (i) => context.go(_tabs[i].$1),
+              labelType: NavigationRailLabelType.all,
+              destinations: [
+                for (final tab in _tabs)
+                  NavigationRailDestination(
+                    icon: Icon(tab.$2),
+                    selectedIcon: Icon(tab.$3),
+                    label: Text(tab.$4),
+                  ),
+              ],
+            ),
+            VerticalDivider(
+              thickness: 0.8,
+              width: 0.8,
+              color: t.colorScheme.outlineVariant.withValues(alpha: 0.2),
+            ),
+            Expanded(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 840),
+                  child: animatedChild,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
-      body: child,
+      body: animatedChild,
       bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
           border: Border(

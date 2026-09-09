@@ -256,6 +256,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: Text(pkg, style: const TextStyle(fontSize: 13)),
                 trailing: IconButton(
                   icon: const Icon(Icons.close_rounded),
+                  tooltip: 'Remove $pkg from whitelist',
                   onPressed: () {
                     final next = settings.autoCapturePackages.difference({pkg});
                     notifier
@@ -295,7 +296,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         }
                         Navigator.pop(ctx);
                       },
-                      child: const Text('Add'),
+                      child: const Text('Add Package'),
                     ),
                   ],
                 ),
@@ -493,7 +494,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       style: FilledButton.styleFrom(
                           backgroundColor: t.colorScheme.error),
                       onPressed: () => Navigator.pop(dialogCtx, true),
-                      child: const Text('Clear'),
+                      child: const Text('Clear All Data'),
                     ),
                   ],
                 ),
@@ -601,7 +602,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: const Text('Cancel')),
           FilledButton(
               onPressed: () => Navigator.pop(dialogCtx, true),
-              child: const Text('Import')),
+              child: const Text('Import Backup')),
         ],
       ),
     );

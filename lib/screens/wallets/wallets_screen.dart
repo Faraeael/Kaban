@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
@@ -62,9 +63,12 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
                 ? Icons.visibility_off_outlined
                 : Icons.visibility_outlined),
             tooltip: settings.privacyMode ? 'Show balances' : 'Hide balances',
-            onPressed: () => ref.read(settingsProvider.notifier).update(
-                  settings.copyWith(privacyMode: !settings.privacyMode),
-                ),
+            onPressed: () {
+              HapticFeedback.selectionClick();
+              ref.read(settingsProvider.notifier).update(
+                    settings.copyWith(privacyMode: !settings.privacyMode),
+                  );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
@@ -80,133 +84,196 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
       ),
       body: wallets.isEmpty
           ? _EmptyState(onTap: () => _showAddSheet(context))
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-              children: [
-                if (active.isNotEmpty) ...[
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primaryContainer
-                          .withValues(alpha: 0.45),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .outlineVariant
-                            .withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= 720;
+
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                  children: [
+                    if (active.isNotEmpty) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primaryContainer
+                              .withValues(alpha: 0.45),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outlineVariant
+                                .withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
-                                  'Total wallet balance',
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600),
-                                ),
-                                const SizedBox(width: 6),
-                                InkWell(
-                                  onTap: () {
-                                    ref.read(settingsProvider.notifier).update(
-                                          settings.copyWith(
-                                              privacyMode:
-                                                  !settings.privacyMode),
-                                        );
-                                  },
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(4),
-                                    child: Icon(
-                                      settings.privacyMode
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined,
-                                      size: 16,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
+                                Row(
+                                  children: [
+                                    const Text(
+                                      'Total wallet balance',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600),
                                     ),
+                                    const SizedBox(width: 6),
+                                    InkWell(
+                                      onTap: () {
+                                        HapticFeedback.selectionClick();
+                                        ref
+                                            .read(settingsProvider.notifier)
+                                            .update(
+                                              settings.copyWith(
+                                                  privacyMode:
+                                                      !settings.privacyMode),
+                                            );
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(4),
+                                        child: Icon(
+                                          settings.privacyMode
+                                              ? Icons.visibility_off_outlined
+                                              : Icons.visibility_outlined,
+                                          size: 16,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerHighest
+                                        .withValues(alpha: 0.5),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '${active.length} active',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                        ),
                                   ),
                                 ),
                               ],
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest
-                                    .withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
+                            const SizedBox(height: 6),
+                            AnimatedSwitcher(
+                              duration: MediaQuery.of(context).disableAnimations
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 200),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeOutCubic,
+                              transitionBuilder: (child, animation) =>
+                                  FadeTransition(
+                                      opacity: animation, child: child),
                               child: Text(
-                                '${active.length} active',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelSmall
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      color: Theme.of(context)
+                                settings.privacyMode
+                                    ? '₱••••••'
+                                    : peso(totalActiveBalance),
+                                key: ValueKey<bool>(settings.privacyMode),
+                                style: TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w800,
+                                  color: totalActiveBalance < 0
+                                      ? Theme.of(context).colorScheme.error
+                                      : Theme.of(context)
                                           .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
+                                          .onPrimaryContainer,
+                                  letterSpacing:
+                                      settings.privacyMode ? 2.0 : -0.5,
+                                ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          settings.privacyMode
-                              ? '₱••••••'
-                              : peso(totalActiveBalance),
-                          style: TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.w800,
-                            color: totalActiveBalance < 0
-                                ? Theme.of(context).colorScheme.error
-                                : Theme.of(context)
-                                    .colorScheme
-                                    .onPrimaryContainer,
-                            letterSpacing: settings.privacyMode ? 2.0 : -0.5,
+                      ),
+                      if (isWide)
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 10,
+                            mainAxisExtent: 84,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  for (final w in active) ...[
-                    _walletTile(
-                        context, w, balanceFor(w), settings.privacyMode),
-                    const SizedBox(height: 10),
+                          itemCount: active.length,
+                          itemBuilder: (_, i) => _walletTile(
+                            context,
+                            active[i],
+                            balanceFor(active[i]),
+                            settings.privacyMode,
+                          ),
+                        )
+                      else
+                        for (final w in active) ...[
+                          _walletTile(
+                              context, w, balanceFor(w), settings.privacyMode),
+                          const SizedBox(height: 10),
+                        ],
+                    ],
+                    if (archived.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'ARCHIVED',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                              letterSpacing: 0.6,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (isWide)
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 10,
+                            mainAxisExtent: 84,
+                          ),
+                          itemCount: archived.length,
+                          itemBuilder: (_, i) => _walletTile(
+                            context,
+                            archived[i],
+                            balanceFor(archived[i]),
+                            settings.privacyMode,
+                          ),
+                        )
+                      else
+                        for (final w in archived) ...[
+                          _walletTile(
+                              context, w, balanceFor(w), settings.privacyMode),
+                          const SizedBox(height: 10),
+                        ],
+                    ],
                   ],
-                ],
-                if (archived.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'ARCHIVED',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          letterSpacing: 0.6,
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  for (final w in archived) ...[
-                    _walletTile(
-                        context, w, balanceFor(w), settings.privacyMode),
-                    const SizedBox(height: 10),
-                  ],
-                ],
-              ],
+                );
+              },
             ),
     );
   }
@@ -253,7 +320,7 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
                 ),
                 FilledButton(
                   onPressed: () => Navigator.pop(dialogCtx, true),
-                  child: const Text('Restore'),
+                  child: const Text('Restore Wallet'),
                 ),
               ],
             ),
@@ -273,7 +340,7 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(dialogCtx, true),
-                child: const Text('Archive'),
+                child: const Text('Archive Wallet'),
               ),
             ],
           ),
@@ -285,6 +352,7 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (_) => _AddWalletSheet(
         onSave: (wallet) {
           ref.read(walletListProvider.notifier).add(wallet);
@@ -298,6 +366,7 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (_) => _EditWalletSheet(
         wallet: w,
         onSave: (next) {
@@ -332,7 +401,7 @@ class _WalletsScreenState extends ConsumerState<WalletsScreen> {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: t.colorScheme.error),
             onPressed: () => Navigator.pop(dialogCtx, true),
-            child: const Text('Delete'),
+            child: const Text('Delete Wallet'),
           ),
         ],
       ),
@@ -511,7 +580,12 @@ class _AddWalletSheetState extends State<_AddWalletSheet> {
           FilledButton(
             onPressed: () {
               final name = nameC.text.trim();
-              if (name.isEmpty) return;
+              if (name.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a wallet name.')),
+                );
+                return;
+              }
               final bal = double.tryParse(balanceC.text) ?? 0;
               widget.onSave(Wallet(
                 id: _uuid.v4(),
@@ -523,7 +597,7 @@ class _AddWalletSheetState extends State<_AddWalletSheet> {
               ));
               Navigator.pop(ctx);
             },
-            child: const Text('Save'),
+            child: const Text('Add Wallet'),
           ),
         ],
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -30,7 +31,7 @@ class QuickLogCard extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: t.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: t.colorScheme.outlineVariant.withValues(alpha: 0.25),
         ),
@@ -47,15 +48,18 @@ class QuickLogCard extends ConsumerWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              InkWell(
-                onTap: () => _openManager(context, ref),
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Icon(
-                    Icons.tune_rounded,
-                    size: 18,
-                    color: t.colorScheme.onSurfaceVariant,
+              Tooltip(
+                message: 'Manage quick log presets',
+                child: InkWell(
+                  onTap: () => _openManager(context, ref),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(
+                      Icons.tune_rounded,
+                      size: 20,
+                      color: t.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ),
@@ -116,12 +120,21 @@ class QuickLogCard extends ConsumerWidget {
     await ref.read(transactionListProvider.notifier).add(txn);
 
     if (!context.mounted) return;
+    final theme = Theme.of(context);
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content:
             Text('${p.icon} ${p.label} ₱${p.amount.toStringAsFixed(0)} logged'),
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Undo',
+          textColor: theme.colorScheme.primary,
+          onPressed: () {
+            ref.read(transactionListProvider.notifier).delete(txn.id);
+          },
+        ),
       ),
     );
   }
@@ -164,41 +177,51 @@ class _PresetChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
-    return GestureDetector(
-      onTap: onLog,
-      onLongPress: onEdit,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: t.colorScheme.primaryContainer.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: t.colorScheme.primary.withValues(alpha: 0.3),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onLog();
+        },
+        onLongPress: () {
+          HapticFeedback.mediumImpact();
+          onEdit();
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: t.colorScheme.primaryContainer.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: t.colorScheme.primary.withValues(alpha: 0.3),
+            ),
           ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(preset.icon, style: const TextStyle(fontSize: 20)),
-            const SizedBox(height: 2),
-            Text(
-              preset.label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: t.colorScheme.onPrimaryContainer,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(preset.icon, style: const TextStyle(fontSize: 20)),
+              const SizedBox(height: 2),
+              Text(
+                preset.label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: t.colorScheme.onPrimaryContainer,
+                ),
               ),
-            ),
-            Text(
-              '₱${preset.amount.toStringAsFixed(0)}',
-              style: TextStyle(
-                fontSize: 11,
-                color: t.colorScheme.primary,
-                fontWeight: FontWeight.w700,
+              Text(
+                '₱${preset.amount.toStringAsFixed(0)}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: t.colorScheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -212,40 +235,47 @@ class _AddChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: t.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: t.colorScheme.outlineVariant.withValues(alpha: 0.4),
-            style: BorderStyle.solid,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: t.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: t.colorScheme.outlineVariant.withValues(alpha: 0.4),
+              style: BorderStyle.solid,
+            ),
           ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.add_rounded,
-                size: 20, color: t.colorScheme.onSurfaceVariant),
-            const SizedBox(height: 2),
-            Text(
-              'Add',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: t.colorScheme.onSurfaceVariant,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.add_rounded,
+                  size: 20, color: t.colorScheme.onSurfaceVariant),
+              const SizedBox(height: 2),
+              Text(
+                'Add',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: t.colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-            Text(
-              'preset',
-              style: TextStyle(
-                fontSize: 11,
-                color: t.colorScheme.onSurfaceVariant,
+              Text(
+                'preset',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: t.colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -360,11 +390,13 @@ class _PresetManagerSheet extends ConsumerWidget {
                           children: [
                             IconButton(
                               icon: const Icon(Icons.edit_outlined, size: 18),
+                              tooltip: 'Edit preset',
                               onPressed: () => _openEdit(context, p),
                             ),
                             IconButton(
                               icon: Icon(Icons.delete_outline,
                                   size: 18, color: t.colorScheme.error),
+                              tooltip: 'Delete preset',
                               onPressed: () => ref
                                   .read(quickPresetProvider.notifier)
                                   .remove(p.id),

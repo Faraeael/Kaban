@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../services/payoff_calculator.dart';
-import '../../services/spending_analyzer.dart';
 import '../../state/data_providers.dart';
 import '../../state/settings_provider.dart';
 import '../../utils/formatters.dart';
@@ -44,36 +43,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final wallets = ref.watch(walletListProvider);
     final txns = ref.watch(transactionListProvider);
     final debts = ref.watch(debtListProvider);
-    final budgets = ref.watch(budgetListProvider);
     final balances = ref.watch(walletBalancesProvider);
     final netWorth = ref.watch(netWorthProvider);
     final monthSummary = ref.watch(monthSummaryProvider);
     final settings = ref.watch(settingsProvider);
 
-    final analyzer = ref.watch(spendingAnalyzerProvider);
-    final calc = ref.watch(payoffCalculatorProvider);
-
-    SpendingInsight? insight;
-    for (final b in budgets) {
-      final c = analyzer.overspendCheck(txns, b.category, b.monthlyLimit);
-      if (c != null) {
-        if (insight == null || c.severity.index > insight.severity.index) {
-          insight = c;
-        }
-      }
-    }
-
-    DebtPayoffResult payoff;
-    if (debts.isNotEmpty) {
-      payoff = calc.simulate(
-        debts: debts,
-        extraMonthlyPayment: 0,
-        strategy: settings.defaultStrategy,
-      );
-    } else {
-      payoff = const DebtPayoffResult(
-          entries: [], totalMonths: 0, totalInterestPaid: 0);
-    }
+    final insight = ref.watch(dashboardInsightProvider);
+    final payoff = ref.watch(dashboardPayoffProvider);
     final startingDebt = debts.fold<double>(0, (s, d) => s + d.balance) +
         payoff.totalInterestPaid;
 
@@ -88,9 +64,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ? Icons.visibility_off_outlined
                 : Icons.visibility_outlined),
             tooltip: settings.privacyMode ? 'Show balances' : 'Hide balances',
-            onPressed: () => ref.read(settingsProvider.notifier).update(
-                  settings.copyWith(privacyMode: !settings.privacyMode),
-                ),
+            onPressed: () {
+              HapticFeedback.selectionClick();
+              ref.read(settingsProvider.notifier).update(
+                    settings.copyWith(privacyMode: !settings.privacyMode),
+                  );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
@@ -107,145 +86,241 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ref.read(debtListProvider.notifier).load(),
           ]);
         },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: t.colorScheme.primaryContainer.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: t.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 720;
+
+            final netWorthCard = Semantics(
+              label: settings.privacyMode
+                  ? 'Net worth is hidden. Privacy mode is active.'
+                  : 'Net worth: ${netWorth < 0 ? "negative " : ""}${peso(netWorth.abs())} for ${monthLabel(DateTime.now())}',
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: t.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: t.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                  ),
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Text('Net worth',
-                              style: TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.w600)),
-                          const SizedBox(width: 6),
-                          InkWell(
-                            onTap: () {
-                              ref.read(settingsProvider.notifier).update(
-                                    settings.copyWith(
-                                        privacyMode: !settings.privacyMode),
-                                  );
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.all(4),
-                              child: Icon(
-                                settings.privacyMode
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined,
-                                size: 16,
-                                color: t.colorScheme.onSurfaceVariant,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Text('Net worth',
+                                style: TextStyle(
+                                    fontSize: 13, fontWeight: FontWeight.w600)),
+                            const SizedBox(width: 6),
+                            Tooltip(
+                              message: settings.privacyMode
+                                  ? 'Show net worth'
+                                  : 'Hide net worth',
+                              child: InkWell(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  ref.read(settingsProvider.notifier).update(
+                                        settings.copyWith(
+                                            privacyMode: !settings.privacyMode),
+                                      );
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8),
+                                  child: Icon(
+                                    settings.privacyMode
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                    size: 18,
+                                    color: t.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
                               ),
                             ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: t.colorScheme.surfaceContainerHighest
+                                .withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            monthLabel(DateTime.now()),
+                            style: t.textTheme.labelSmall?.copyWith(
+                              color: t.colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    AnimatedSwitcher(
+                      duration: MediaQuery.of(context).disableAnimations
+                          ? Duration.zero
+                          : const Duration(milliseconds: 200),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeOutCubic,
+                      transitionBuilder: (child, animation) =>
+                          FadeTransition(opacity: animation, child: child),
+                      child: Text(
+                        settings.privacyMode ? '₱••••••' : peso(netWorth),
+                        key: ValueKey<bool>(settings.privacyMode),
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          color: netWorth < 0
+                              ? t.colorScheme.error
+                              : t.colorScheme.onPrimaryContainer,
+                          letterSpacing: settings.privacyMode ? 2.0 : -0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+
+            final insightBanner = (insight != null)
+                ? InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => context.push('/goals'),
+                    child: InsightBanner(insight: insight),
+                  )
+                : null;
+
+            final walletsSection = visibleWallets.isNotEmpty
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Wallets',
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w700)),
+                          TextButton(
+                            onPressed: () => context.push('/wallets'),
+                            child: const Text('See all'),
                           ),
                         ],
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: t.colorScheme.surfaceContainerHighest
-                              .withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          monthLabel(DateTime.now()),
-                          style: t.textTheme.labelSmall?.copyWith(
-                            color: t.colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w600,
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 90,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: visibleWallets.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 10),
+                          itemBuilder: (_, i) => WalletBalanceCard(
+                            wallet: visibleWallets[i],
+                            balance: balances[visibleWallets[i].id] ?? 0,
+                            obscureBalance: settings.privacyMode,
+                            onTap: () => context.push('/wallets'),
                           ),
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    settings.privacyMode ? '₱••••••' : peso(netWorth),
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: netWorth < 0
-                          ? t.colorScheme.error
-                          : t.colorScheme.onPrimaryContainer,
-                      letterSpacing: settings.privacyMode ? 2.0 : -0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (insight != null) ...[
-              const SizedBox(height: 14),
-              InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () => context.push('/goals'),
-                child: InsightBanner(insight: insight),
-              ),
-            ],
-            const SizedBox(height: 14),
-            const _QuickActionStrip(),
-            const SizedBox(height: 14),
-            const QuickLogCard(),
-            const SizedBox(height: 14),
-            if (visibleWallets.isNotEmpty) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Wallets',
-                      style:
-                          TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                  TextButton(
-                    onPressed: () => context.push('/wallets'),
-                    child: const Text('See all'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 90,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: visibleWallets.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
-                  itemBuilder: (_, i) => WalletBalanceCard(
-                    wallet: visibleWallets[i],
-                    balance: balances[visibleWallets[i].id] ?? 0,
-                    obscureBalance: settings.privacyMode,
-                    onTap: () => context.push('/wallets'),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-            ],
-            SummaryCard(
+                  )
+                : null;
+
+            final summaryCard = SummaryCard(
               income: monthSummary.income,
               expense: monthSummary.expense,
               obscure: settings.privacyMode,
-            ),
-            const SizedBox(height: 12),
-            CashflowBarChart(txns: txns),
-            const SizedBox(height: 12),
-            SpendingPieChart(byCategory: monthSummary.byCategory),
-            const SizedBox(height: 12),
-            DebtProgressCard(
+            );
+
+            final debtProgressCard = DebtProgressCard(
               totalDebt: debts.fold(0, (s, d) => s + d.balance),
               startingTotalDebt: startingDebt,
               monthsRemaining: payoff.totalMonths,
               wallets: wallets,
               onTap: () => context.push('/debts'),
-            ),
-          ],
+            );
+
+            if (isWide) {
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            netWorthCard,
+                            if (insightBanner != null) ...[
+                              const SizedBox(height: 14),
+                              insightBanner,
+                            ],
+                            const SizedBox(height: 14),
+                            const _QuickActionStrip(),
+                            const SizedBox(height: 14),
+                            const QuickLogCard(),
+                            if (walletsSection != null) ...[
+                              const SizedBox(height: 14),
+                              walletsSection,
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            summaryCard,
+                            const SizedBox(height: 12),
+                            CashflowBarChart(txns: txns),
+                            const SizedBox(height: 12),
+                            SpendingPieChart(
+                                byCategory: monthSummary.byCategory),
+                            const SizedBox(height: 12),
+                            debtProgressCard,
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }
+
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+              children: [
+                netWorthCard,
+                if (insightBanner != null) ...[
+                  const SizedBox(height: 14),
+                  insightBanner,
+                ],
+                const SizedBox(height: 14),
+                const _QuickActionStrip(),
+                const SizedBox(height: 14),
+                const QuickLogCard(),
+                if (walletsSection != null) ...[
+                  const SizedBox(height: 14),
+                  walletsSection,
+                  const SizedBox(height: 14),
+                ],
+                summaryCard,
+                const SizedBox(height: 12),
+                CashflowBarChart(txns: txns),
+                const SizedBox(height: 12),
+                SpendingPieChart(byCategory: monthSummary.byCategory),
+                const SizedBox(height: 12),
+                debtProgressCard,
+              ],
+            );
+          },
         ),
       ),
     );
@@ -277,7 +352,7 @@ class _QuickActionStrip extends StatelessWidget {
     ];
 
     return SizedBox(
-      height: 40,
+      height: 48,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
@@ -286,12 +361,12 @@ class _QuickActionStrip extends StatelessWidget {
           final item = items[i];
           return InkWell(
             onTap: () => ctx.push(item.path),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: t.colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(24),
                 border: Border.all(
                   color: t.colorScheme.outlineVariant.withValues(alpha: 0.25),
                 ),
@@ -299,12 +374,12 @@ class _QuickActionStrip extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(item.icon, size: 16, color: t.colorScheme.primary),
-                  const SizedBox(width: 6),
+                  Icon(item.icon, size: 18, color: t.colorScheme.primary),
+                  const SizedBox(width: 8),
                   Text(
                     item.label,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: t.colorScheme.onSurface,
                     ),

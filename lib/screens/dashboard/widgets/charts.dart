@@ -26,64 +26,74 @@ class SpendingPieChart extends StatelessWidget {
       ..sort((a, b) => b.value.compareTo(a.value));
     final total = entries.fold<double>(0, (s, e) => s + e.value);
 
+    final summaryText =
+        'Expense breakdown: ${entries.take(4).map((e) => "${e.key} ${peso(e.value)}").join(", ")}. Total spending ${peso(total)}.';
+
     return _ChartCard(
       title: 'This month by category',
       child: total <= 0
           ? const _ChartHint(text: 'No expenses recorded this month yet.')
-          : Row(
-              children: [
-                SizedBox(
-                  width: 140,
-                  height: 140,
-                  child: PieChart(
-                    PieChartData(
-                      sectionsSpace: 2,
-                      centerSpaceRadius: 34,
-                      sections: _sections(entries, total),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (var i = 0; i < entries.length && i < 7; i++)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 3),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 10,
-                                height: 10,
-                                decoration: BoxDecoration(
-                                  color:
-                                      _chartPalette[i % _chartPalette.length],
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  entries[i].key,
-                                  style: t.textTheme.bodySmall,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Text(
-                                peso(entries[i].value),
-                                style: t.textTheme.bodySmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
+          : Semantics(
+              label: summaryText,
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 140,
+                    height: 140,
+                    child: ExcludeSemantics(
+                      child: RepaintBoundary(
+                        child: PieChart(
+                          PieChartData(
+                            sectionsSpace: 2,
+                            centerSpaceRadius: 34,
+                            sections: _sections(entries, total),
                           ),
                         ),
-                    ],
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var i = 0; i < entries.length && i < 7; i++)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    color:
+                                        _chartPalette[i % _chartPalette.length],
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    entries[i].key,
+                                    style: t.textTheme.bodySmall,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Text(
+                                  peso(entries[i].value),
+                                  style: t.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
     );
   }
@@ -138,94 +148,105 @@ class CashflowBarChart extends StatelessWidget {
       ...expenses,
     ].fold<double>(0, (s, v) => v > s ? v : s);
 
+    final summaryText =
+        'Cashflow over last 6 months. Most recent month: ${DateFormat('MMMM').format(months[5])}, income ${peso(incomes[5])}, expenses ${peso(expenses[5])}.';
+
     return _ChartCard(
       title: 'Last 6 months',
       child: maxVal <= 0
           ? const _ChartHint(
               text: 'Log income and expenses to see your cashflow.')
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  height: 150,
-                  child: BarChart(
-                    BarChartData(
-                      maxY: maxVal * 1.2,
-                      gridData: FlGridData(
-                        show: true,
-                        drawVerticalLine: false,
-                        horizontalInterval: maxVal / 3,
-                        getDrawingHorizontalLine: (v) => FlLine(
-                          color: t.colorScheme.outlineVariant
-                              .withValues(alpha: 0.3),
-                          strokeWidth: 1,
-                        ),
-                      ),
-                      borderData: FlBorderData(show: false),
-                      titlesData: FlTitlesData(
-                        leftTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 24,
-                            getTitlesWidget: (value, meta) => Padding(
-                              padding: const EdgeInsets.only(top: 6),
-                              child: Text(
-                                DateFormat('MMM').format(months[value.toInt()]),
-                                style: t.textTheme.labelSmall?.copyWith(
-                                  color: t.colorScheme.onSurfaceVariant,
+          : Semantics(
+              label: summaryText,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    height: 150,
+                    child: ExcludeSemantics(
+                      child: RepaintBoundary(
+                        child: BarChart(
+                          BarChartData(
+                            maxY: maxVal * 1.2,
+                            gridData: FlGridData(
+                              show: true,
+                              drawVerticalLine: false,
+                              horizontalInterval: maxVal / 3,
+                              getDrawingHorizontalLine: (v) => FlLine(
+                                color: t.colorScheme.outlineVariant
+                                    .withValues(alpha: 0.3),
+                                strokeWidth: 1,
+                              ),
+                            ),
+                            borderData: FlBorderData(show: false),
+                            titlesData: FlTitlesData(
+                              leftTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              topTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              rightTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 24,
+                                  getTitlesWidget: (value, meta) => Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Text(
+                                      DateFormat('MMM')
+                                          .format(months[value.toInt()]),
+                                      style: t.textTheme.labelSmall?.copyWith(
+                                        color: t.colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
+                            barGroups: [
+                              for (var i = 0; i < 6; i++)
+                                BarChartGroupData(
+                                  x: i,
+                                  barsSpace: 4,
+                                  barRods: [
+                                    BarChartRodData(
+                                      toY: incomes[i],
+                                      color: t.colorScheme.primary,
+                                      width: 10,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    BarChartRodData(
+                                      toY: expenses[i],
+                                      color: t.colorScheme.error
+                                          .withValues(alpha: 0.75),
+                                      width: 10,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ],
+                                ),
+                            ],
                           ),
                         ),
                       ),
-                      barGroups: [
-                        for (var i = 0; i < 6; i++)
-                          BarChartGroupData(
-                            x: i,
-                            barsSpace: 4,
-                            barRods: [
-                              BarChartRodData(
-                                toY: incomes[i],
-                                color: t.colorScheme.primary,
-                                width: 10,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              BarChartRodData(
-                                toY: expenses[i],
-                                color:
-                                    t.colorScheme.error.withValues(alpha: 0.75),
-                                width: 10,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ],
-                          ),
-                      ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    _LegendDot(
-                        color: t.colorScheme.primary, label: 'Income', t: t),
-                    const SizedBox(width: 14),
-                    _LegendDot(
-                        color: t.colorScheme.error.withValues(alpha: 0.75),
-                        label: 'Expense',
-                        t: t),
-                  ],
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _LegendDot(
+                          color: t.colorScheme.primary, label: 'Income', t: t),
+                      const SizedBox(width: 14),
+                      _LegendDot(
+                          color: t.colorScheme.error.withValues(alpha: 0.75),
+                          label: 'Expense',
+                          t: t),
+                    ],
+                  ),
+                ],
+              ),
             ),
     );
   }

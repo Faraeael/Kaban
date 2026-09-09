@@ -28,10 +28,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _next() {
     if (_page < 1) {
       HapticFeedback.selectionClick();
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeOutCubic,
-      );
+      final reduceMotion = MediaQuery.of(context).disableAnimations;
+      if (reduceMotion) {
+        _pageController.jumpToPage(_page + 1);
+      } else {
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+        );
+      }
     } else {
       _finish();
     }
@@ -40,10 +45,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _back() {
     if (_page > 0) {
       HapticFeedback.selectionClick();
-      _pageController.previousPage(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-      );
+      final reduceMotion = MediaQuery.of(context).disableAnimations;
+      if (reduceMotion) {
+        _pageController.jumpToPage(_page - 1);
+      } else {
+        _pageController.previousPage(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+        );
+      }
     }
   }
 
@@ -58,76 +68,83 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
-    return Scaffold(
-      backgroundColor: t.colorScheme.surface,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 12, 0),
-              child: Row(
-                children: [
-                  AnimatedDots(
-                      active: _page,
-                      count: 2,
-                      color: t.colorScheme.primary,
-                      dim: t.colorScheme.outlineVariant),
-                  const Spacer(),
-                  if (_page < 1)
-                    TextButton(
-                      onPressed: _finish,
-                      style: TextButton.styleFrom(
-                        foregroundColor: t.colorScheme.onSurfaceVariant,
+    return PopScope(
+      canPop: _page == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_page > 0) _back();
+      },
+      child: Scaffold(
+        backgroundColor: t.colorScheme.surface,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 12, 0),
+                child: Row(
+                  children: [
+                    AnimatedDots(
+                        active: _page,
+                        count: 2,
+                        color: t.colorScheme.primary,
+                        dim: t.colorScheme.outlineVariant),
+                    const Spacer(),
+                    if (_page < 1)
+                      TextButton(
+                        onPressed: _finish,
+                        style: TextButton.styleFrom(
+                          foregroundColor: t.colorScheme.onSurfaceVariant,
+                        ),
+                        child: const Text('Skip for now'),
                       ),
-                      child: const Text('Skip for now'),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                onPageChanged: (i) => setState(() => _page = i),
-                physics: const NeverScrollableScrollPhysics(),
-                children: const [
-                  _WalletIntroPage(),
-                  _CoachIntroPage(),
-                ],
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  onPageChanged: (i) => setState(() => _page = i),
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: const [
+                    _WalletIntroPage(),
+                    _CoachIntroPage(),
+                  ],
+                ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              child: Row(
-                children: [
-                  if (_page > 0)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                child: Row(
+                  children: [
+                    if (_page > 0)
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _back,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Back'),
+                        ),
+                      ),
+                    if (_page > 0) const SizedBox(width: 12),
                     Expanded(
-                      child: OutlinedButton(
-                        onPressed: _back,
-                        style: OutlinedButton.styleFrom(
+                      flex: 2,
+                      child: FilledButton(
+                        onPressed: _next,
+                        style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: const Text('Back'),
+                        child: Text(_page == 1 ? "I'm ready" : 'Continue'),
                       ),
                     ),
-                  if (_page > 0) const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: FilledButton(
-                      onPressed: _next,
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: Text(_page == 1 ? "I'm ready" : 'Continue'),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -479,6 +496,7 @@ class _CoachIntroPageState extends ConsumerState<_CoachIntroPage> {
                     ? null
                     : IconButton(
                         icon: const Icon(Icons.check_rounded, size: 18),
+                        tooltip: 'Save API key',
                         onPressed: () {
                           notifier.update(
                               settings.copyWith(aiApiKey: _apiKey.text));
@@ -755,6 +773,7 @@ class _ProviderPickerRow extends StatelessWidget {
     final picked = await showModalBottomSheet<AIProvider>(
       context: context,
       showDragHandle: true,
+      useSafeArea: true,
       builder: (_) => _ProviderSheet(current: provider, onPick: onPick),
     );
     if (picked != null) onPick(picked);

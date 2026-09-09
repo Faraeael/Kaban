@@ -54,11 +54,17 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       final key = shortDate(t.date);
       grouped.putIfAbsent(key, () => []).add(t);
     }
+    final groupKeys = grouped.keys.toList();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Transactions'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.swap_horiz_rounded),
+            tooltip: 'Transfer',
+            onPressed: () => context.push('/transactions/transfer'),
+          ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings',
@@ -66,23 +72,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           ),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          FloatingActionButton.small(
-            heroTag: 'transfer',
-            onPressed: () => context.push('/transactions/transfer'),
-            child: const Icon(Icons.swap_horiz_rounded),
-          ),
-          const SizedBox(height: 10),
-          FloatingActionButton.extended(
-            heroTag: 'add',
-            onPressed: () => _showAdd(context),
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Add'),
-          ),
-        ],
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAdd(context),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Add transaction'),
       ),
       body: Column(
         children: [
@@ -96,6 +89,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     _filterMonth =
                         DateTime(_filterMonth.year, _filterMonth.month - 1, 1);
                   }),
+                  tooltip: 'Previous month',
                   icon: const Icon(Icons.chevron_left_rounded),
                 ),
                 Text(
@@ -112,6 +106,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       setState(() => _filterMonth = next);
                     }
                   },
+                  tooltip: 'Next month',
                   icon: const Icon(Icons.chevron_right_rounded),
                 ),
               ],
@@ -119,72 +114,77 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outlineVariant
-                      .withValues(alpha: 0.2),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'In: ${peso(monthInflow)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    width: 1,
-                    height: 16,
+            child: Semantics(
+              label:
+                  'Monthly cashflow for ${monthLabel(_filterMonth)}: Inflow ${peso(monthInflow)}, Outflow ${peso(monthOutflow)}',
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
                     color: Theme.of(context)
                         .colorScheme
                         .outlineVariant
-                        .withValues(alpha: 0.4),
+                        .withValues(alpha: 0.2),
                   ),
-                  Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.error,
-                          shape: BoxShape.circle,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary,
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Out: ${peso(monthOutflow)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.error,
+                        const SizedBox(width: 6),
+                        Text(
+                          'In: ${peso(monthInflow)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                    Container(
+                      width: 1,
+                      height: 16,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .outlineVariant
+                          .withValues(alpha: 0.4),
+                    ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.error,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Out: ${peso(monthOutflow)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -232,9 +232,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
-                    itemCount: grouped.length,
+                    itemCount: groupKeys.length,
                     itemBuilder: (_, i) {
-                      final key = grouped.keys.elementAt(i);
+                      final key = groupKeys[i];
                       final list = grouped[key]!;
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -273,6 +273,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (_) => const AddTransactionSheet(),
     );
   }
@@ -290,6 +291,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (sheetCtx) => Padding(
         padding: EdgeInsets.fromLTRB(
             20, 16, 20, MediaQuery.of(sheetCtx).viewInsets.bottom + 24),
@@ -393,6 +395,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
+                        useSafeArea: true,
                         builder: (_) => AddTransactionSheet(initial: t),
                       );
                     },
@@ -421,6 +424,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               onPressed: () => Navigator.pop(dialogCtx),
               child: const Text('Cancel')),
           FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             onPressed: () {
               if (t.transferPairId != null) {
                 ref
@@ -431,7 +438,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               }
               Navigator.pop(dialogCtx);
             },
-            child: const Text('Delete'),
+            child: const Text('Delete Transaction'),
           ),
         ],
       ),
@@ -461,62 +468,70 @@ class _TransactionRow extends StatelessWidget {
         ? t.colorScheme.tertiary
         : (isIncome ? t.colorScheme.primary : t.colorScheme.error);
     final prefix = (isIncome || isTransferIn) ? '+' : '−';
-    return InkWell(
-      onTap: onTap,
-      onLongPress: onLongPress,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
+    final semanticType =
+        isTransfer ? 'Transfer' : (isIncome ? 'Income' : 'Expense');
+    final semanticLabel =
+        '$semanticType: ${txn.category}, ${pesoExact(txn.amount)}, ${wallet?.name ?? "Unknown wallet"}${txn.note != null && txn.note!.isNotEmpty ? ", note: ${txn.note}" : ""}';
+
+    return Semantics(
+      label: semanticLabel,
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  isTransfer
+                      ? Icons.swap_horiz_rounded
+                      : (isIncome
+                          ? Icons.trending_up_rounded
+                          : Icons.trending_down_rounded),
+                  color: color,
+                  size: 20,
+                ),
               ),
-              child: Icon(
-                isTransfer
-                    ? Icons.swap_horiz_rounded
-                    : (isIncome
-                        ? Icons.trending_up_rounded
-                        : Icons.trending_down_rounded),
-                color: color,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    txn.category,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    [
-                      wallet?.name ?? 'Unknown',
-                      if (txn.note != null) txn.note!,
-                    ].join(' • '),
-                    style: t.textTheme.bodySmall?.copyWith(
-                      color: t.colorScheme.onSurfaceVariant,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      txn.category,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      [
+                        wallet?.name ?? 'Unknown',
+                        if (txn.note != null) txn.note!,
+                      ].join(' • '),
+                      style: t.textTheme.bodySmall?.copyWith(
+                        color: t.colorScheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Text(
-              '$prefix ${pesoExact(txn.amount)}',
-              style: TextStyle(fontWeight: FontWeight.w700, color: color),
-            ),
-          ],
+              Text(
+                '$prefix ${pesoExact(txn.amount)}',
+                style: TextStyle(fontWeight: FontWeight.w700, color: color),
+              ),
+            ],
+          ),
         ),
       ),
     );

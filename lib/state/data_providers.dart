@@ -372,6 +372,49 @@ final monthSummaryProvider =
   return (income: income, expense: expense, byCategory: byCat);
 });
 
+final subscriptionSuggestionsProvider =
+    Provider<List<SubscriptionSuggestion>>((ref) {
+  final txns = ref.watch(transactionListProvider);
+  if (txns.isEmpty) return const [];
+  final detector = ref.watch(subscriptionDetectorProvider);
+  return detector.detect(txns);
+});
+
+final dashboardInsightProvider = Provider<SpendingInsight?>((ref) {
+  final budgets = ref.watch(budgetListProvider);
+  if (budgets.isEmpty) return null;
+  final txns = ref.watch(transactionListProvider);
+  final analyzer = ref.watch(spendingAnalyzerProvider);
+  SpendingInsight? insight;
+  for (final b in budgets) {
+    final c = analyzer.overspendCheck(txns, b.category, b.monthlyLimit);
+    if (c != null) {
+      if (insight == null || c.severity.index > insight.severity.index) {
+        insight = c;
+      }
+    }
+  }
+  return insight;
+});
+
+final dashboardPayoffProvider = Provider<DebtPayoffResult>((ref) {
+  final debts = ref.watch(debtListProvider);
+  if (debts.isEmpty) {
+    return const DebtPayoffResult(
+      entries: [],
+      totalMonths: 0,
+      totalInterestPaid: 0,
+    );
+  }
+  final strategy = ref.watch(settingsProvider.select((s) => s.defaultStrategy));
+  final calc = ref.watch(payoffCalculatorProvider);
+  return calc.simulate(
+    debts: debts,
+    extraMonthlyPayment: 0,
+    strategy: strategy,
+  );
+});
+
 const _coachHistoryLimit = 20;
 
 final coachServiceProvider = FutureProvider<CoachService>((ref) async {

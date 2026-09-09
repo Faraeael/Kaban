@@ -54,6 +54,7 @@ class ChatBubble extends StatelessWidget {
                 color: Colors.black54,
                 shape: const CircleBorder(),
                 child: IconButton(
+                  tooltip: 'Close image preview',
                   icon: const Icon(Icons.close_rounded,
                       color: Colors.white, size: 24),
                   onPressed: () => Navigator.pop(ctx),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/budget.dart';
 import '../../models/goal.dart';
+import '../../models/transaction.dart';
 import '../../state/data_providers.dart';
 import '../../utils/formatters.dart';
 
@@ -111,51 +112,95 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, i) {
         final g = goals[i];
-        return Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: t.colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(g.name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15)),
-                  ),
-                  if (g.deadline != null)
-                    Text(
-                      'by ${g.deadline!.year}-${g.deadline!.month.toString().padLeft(2, '0')}-${g.deadline!.day.toString().padLeft(2, '0')}',
-                      style: t.textTheme.bodySmall,
+        final isAchieved = g.progress >= 1.0;
+        final deadlineStr = g.deadline != null
+            ? ', deadline ${g.deadline!.year}-${g.deadline!.month.toString().padLeft(2, "0")}-${g.deadline!.day.toString().padLeft(2, "0")}'
+            : '';
+        final semanticLabel = isAchieved
+            ? 'Goal: ${g.name}. Target ${peso(g.target)} reached! 100% complete$deadlineStr.'
+            : 'Goal: ${g.name}. Target ${peso(g.target)}, saved ${peso(g.saved)}, ${(g.progress * 100).toStringAsFixed(0)}% complete$deadlineStr.';
+
+        return Semantics(
+          label: semanticLabel,
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: t.colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isAchieved
+                    ? t.colorScheme.primary.withValues(alpha: 0.35)
+                    : Colors.transparent,
+                width: 1.2,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(g.name,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 15)),
                     ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: g.progress,
-                  minHeight: 8,
-                  backgroundColor: t.colorScheme.surfaceContainerHighest,
-                  valueColor: AlwaysStoppedAnimation(t.colorScheme.primary),
+                    if (g.deadline != null)
+                      Text(
+                        'by ${g.deadline!.year}-${g.deadline!.month.toString().padLeft(2, '0')}-${g.deadline!.day.toString().padLeft(2, '0')}',
+                        style: t.textTheme.bodySmall,
+                      ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Text(peso(g.saved),
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  Text(' / ${peso(g.target)}', style: t.textTheme.bodySmall),
-                  const Spacer(),
-                  Text('${(g.progress * 100).toStringAsFixed(0)}%',
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                ],
-              ),
-            ],
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: TweenAnimationBuilder<double>(
+                    duration: MediaQuery.of(context).disableAnimations
+                        ? Duration.zero
+                        : const Duration(milliseconds: 350),
+                    curve: Curves.easeOutCubic,
+                    tween: Tween<double>(
+                        begin: 0.0, end: g.progress.clamp(0.0, 1.0)),
+                    builder: (context, animatedProgress, _) =>
+                        LinearProgressIndicator(
+                      value: animatedProgress,
+                      minHeight: 8,
+                      backgroundColor: t.colorScheme.surfaceContainerHighest,
+                      valueColor: AlwaysStoppedAnimation(t.colorScheme.primary),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Text(peso(g.saved),
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    Text(' / ${peso(g.target)}', style: t.textTheme.bodySmall),
+                    const Spacer(),
+                    if (isAchieved)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle_rounded,
+                              size: 14, color: t.colorScheme.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Goal reached! 🎉',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: t.colorScheme.primary,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      Text('${(g.progress * 100).toStringAsFixed(0)}%',
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -221,7 +266,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
     // Sum expenses by category inside the window
     Map<String, double> spent = {};
     for (final tx in txns) {
-      if (tx.type.name != 'expense') continue;
+      if (tx.type != TransactionType.expense) continue;
       if (tx.date.isBefore(windowStart) || tx.date.isAfter(windowEnd)) continue;
       spent[tx.category] = (spent[tx.category] ?? 0) + tx.amount;
     }
@@ -247,40 +292,45 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                     style: t.textTheme.bodySmall,
                   ),
                 ),
-                GestureDetector(
-                  onTap: () => setState(() => _quincenaMode = !_quincenaMode),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: _quincenaMode
-                          ? t.colorScheme.primaryContainer
-                          : t.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
+                Semantics(
+                  button: true,
+                  label: 'Toggle 15-day Quincena pay cycle view',
+                  toggled: _quincenaMode,
+                  child: GestureDetector(
+                    onTap: () => setState(() => _quincenaMode = !_quincenaMode),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
                         color: _quincenaMode
-                            ? t.colorScheme.primary.withValues(alpha: 0.5)
-                            : t.colorScheme.outlineVariant
-                                .withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('⚡', style: TextStyle(fontSize: 12)),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Quincena',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: _quincenaMode
-                                ? t.colorScheme.onPrimaryContainer
-                                : t.colorScheme.onSurfaceVariant,
-                          ),
+                            ? t.colorScheme.primaryContainer
+                            : t.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: _quincenaMode
+                              ? t.colorScheme.primary.withValues(alpha: 0.5)
+                              : t.colorScheme.outlineVariant
+                                  .withValues(alpha: 0.3),
                         ),
-                      ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('⚡', style: TextStyle(fontSize: 12)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Quincena',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: _quincenaMode
+                                  ? t.colorScheme.onPrimaryContainer
+                                  : t.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -307,85 +357,101 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
           barColor = t.colorScheme.primary;
         }
 
-        return Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: isOver
-                ? t.colorScheme.errorContainer.withValues(alpha: 0.3)
-                : t.colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(14),
-            border: isOver
-                ? Border.all(color: t.colorScheme.error.withValues(alpha: 0.4))
-                : null,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      b.category,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: isOver ? t.colorScheme.error : null,
+        final statusDesc = isOver
+            ? ', Over budget by ${peso(usedAmount - effectiveLimit)}'
+            : (isWarning ? ', Near budget limit' : '');
+        return Semantics(
+          label:
+              'Budget for ${b.category}: ${peso(usedAmount)} spent of ${peso(effectiveLimit)} limit, ${(ratio * 100).toStringAsFixed(0)}% used$statusDesc.',
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isOver
+                  ? t.colorScheme.errorContainer.withValues(alpha: 0.3)
+                  : t.colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(14),
+              border: isOver
+                  ? Border.all(
+                      color: t.colorScheme.error.withValues(alpha: 0.4))
+                  : null,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        b.category,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: isOver ? t.colorScheme.error : null,
+                        ),
                       ),
                     ),
-                  ),
-                  if (isOver)
-                    Icon(Icons.warning_amber_rounded,
-                        size: 16, color: t.colorScheme.error),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${peso(usedAmount)} / ${peso(effectiveLimit)}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: isOver
-                          ? t.colorScheme.error
-                          : isWarning
-                              ? Colors.orange.shade700
-                              : t.colorScheme.onSurface,
+                    if (isOver)
+                      Icon(Icons.warning_amber_rounded,
+                          size: 16, color: t.colorScheme.error),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${peso(usedAmount)} / ${peso(effectiveLimit)}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: isOver
+                            ? t.colorScheme.error
+                            : isWarning
+                                ? Colors.orange.shade700
+                                : t.colorScheme.onSurface,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: ratio,
-                  minHeight: 8,
-                  backgroundColor: t.colorScheme.surfaceContainerHighest,
-                  valueColor: AlwaysStoppedAnimation(barColor),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Text(
-                    isOver
-                        ? '₱${(usedAmount - effectiveLimit).toStringAsFixed(0)} over budget'
-                        : '₱${(effectiveLimit - usedAmount).toStringAsFixed(0)} remaining',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: isOver
-                          ? t.colorScheme.error
-                          : t.colorScheme.onSurfaceVariant,
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: TweenAnimationBuilder<double>(
+                    duration: MediaQuery.of(context).disableAnimations
+                        ? Duration.zero
+                        : const Duration(milliseconds: 350),
+                    curve: Curves.easeOutCubic,
+                    tween: Tween<double>(begin: 0.0, end: ratio),
+                    builder: (context, animatedRatio, _) =>
+                        LinearProgressIndicator(
+                      value: animatedRatio,
+                      minHeight: 8,
+                      backgroundColor: t.colorScheme.surfaceContainerHighest,
+                      valueColor: AlwaysStoppedAnimation(barColor),
                     ),
                   ),
-                  const Spacer(),
-                  Text(
-                    '${(ratio * 100).toStringAsFixed(0)}%',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: barColor,
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Text(
+                      isOver
+                          ? '₱${(usedAmount - effectiveLimit).toStringAsFixed(0)} over budget'
+                          : '₱${(effectiveLimit - usedAmount).toStringAsFixed(0)} remaining',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isOver
+                            ? t.colorScheme.error
+                            : t.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    const Spacer(),
+                    Text(
+                      '${(ratio * 100).toStringAsFixed(0)}%',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: barColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -396,6 +462,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (_) => const _GoalSheet(),
     );
   }
@@ -404,6 +471,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (_) => const _BudgetSheet(),
     );
   }
@@ -499,7 +567,7 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
                 Expanded(
                   child: FilledButton(
                     onPressed: _save,
-                    child: const Text('Save'),
+                    child: const Text('Save Goal'),
                   ),
                 ),
               ],
@@ -513,7 +581,19 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
   void _save() {
     final target = double.tryParse(_target.text) ?? 0;
     final saved = double.tryParse(_saved.text) ?? 0;
-    if (_name.text.trim().isEmpty || target <= 0) return;
+    if (_name.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a goal name.')),
+      );
+      return;
+    }
+    if (target <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please enter a target amount greater than ₱0.')),
+      );
+      return;
+    }
     final g = Goal(
       id: _uuid.v4(),
       name: _name.text.trim(),
@@ -593,7 +673,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
                 Expanded(
                   child: FilledButton(
                     onPressed: _save,
-                    child: const Text('Save'),
+                    child: const Text('Save Budget'),
                   ),
                 ),
               ],
@@ -606,7 +686,14 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
 
   void _save() {
     final amt = double.tryParse(_amount.text) ?? 0;
-    if (amt <= 0) return;
+    if (amt <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('Please enter a monthly budget limit greater than ₱0.')),
+      );
+      return;
+    }
     final b = Budget(
       id: _uuid.v4(),
       category: _category,

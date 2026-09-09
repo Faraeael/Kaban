@@ -50,12 +50,9 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen>
     final t = Theme.of(context);
     final recurring = ref.watch(recurringListProvider);
     final subs = ref.watch(subscriptionListProvider);
-    final txns = ref.watch(transactionListProvider);
     final wallets = ref.watch(walletListProvider);
     final activeWallets = wallets.where((w) => !w.archived).toList();
-
-    final detector = ref.watch(subscriptionDetectorProvider);
-    final suggestions = detector.detect(txns);
+    final suggestions = ref.watch(subscriptionSuggestionsProvider);
     final totalMonthly =
         subs.fold<double>(0, (s, sub) => s + sub.monthlyEquivalent);
 
@@ -301,11 +298,15 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen>
               onPressed: () => Navigator.pop(dialogCtx),
               child: const Text('Cancel')),
           FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             onPressed: () {
               ref.read(subscriptionListProvider.notifier).delete(s.id);
               Navigator.pop(dialogCtx);
             },
-            child: const Text('Delete'),
+            child: const Text('Delete Subscription'),
           ),
         ],
       ),
@@ -317,6 +318,7 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (_) => _RecurringSheet(
         initial: initial,
         wallets: wallets,
@@ -342,6 +344,7 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (_) => const _AddSubscriptionSheet(),
     );
   }
@@ -588,7 +591,7 @@ class _RecurringSheetState extends State<_RecurringSheet> {
                       style: OutlinedButton.styleFrom(
                           foregroundColor: t.colorScheme.error),
                       onPressed: widget.onDelete,
-                      child: const Text('Delete'),
+                      child: const Text('Delete Recurring'),
                     ),
                   ),
                 if (widget.onDelete != null) const SizedBox(width: 12),
@@ -602,7 +605,9 @@ class _RecurringSheetState extends State<_RecurringSheet> {
                 Expanded(
                   child: FilledButton(
                     onPressed: _save,
-                    child: const Text('Save'),
+                    child: Text(widget.initial == null
+                        ? 'Add Recurring'
+                        : 'Update Recurring'),
                   ),
                 ),
               ],
@@ -615,7 +620,23 @@ class _RecurringSheetState extends State<_RecurringSheet> {
 
   void _save() {
     final amt = double.tryParse(_amount.text) ?? 0;
-    if (amt <= 0 || _name.text.trim().isEmpty || _walletId == null) {
+    if (_name.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a recurring bill name.')),
+      );
+      return;
+    }
+    if (amt <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please enter an amount greater than ₱0.')),
+      );
+      return;
+    }
+    if (_walletId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a wallet.')),
+      );
       return;
     }
     final r = RecurringTransaction(
@@ -733,7 +754,7 @@ class _AddSubscriptionSheetState extends ConsumerState<_AddSubscriptionSheet> {
                 Expanded(
                   child: FilledButton(
                     onPressed: _save,
-                    child: const Text('Save'),
+                    child: const Text('Save Subscription'),
                   ),
                 ),
               ],
@@ -746,10 +767,23 @@ class _AddSubscriptionSheetState extends ConsumerState<_AddSubscriptionSheet> {
 
   void _save() {
     final amt = double.tryParse(_amount.text);
-    if (amt == null ||
-        amt <= 0 ||
-        _name.text.trim().isEmpty ||
-        _walletId == null) {
+    if (_name.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a subscription name.')),
+      );
+      return;
+    }
+    if (amt == null || amt <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please enter an amount greater than ₱0.')),
+      );
+      return;
+    }
+    if (_walletId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a wallet.')),
+      );
       return;
     }
     final sub = Subscription(

@@ -155,7 +155,9 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
                 Expanded(
                   child: FilledButton(
                     onPressed: _save,
-                    child: const Text('Save'),
+                    child: Text(widget.initial != null
+                        ? 'Update Transaction'
+                        : 'Save Transaction'),
                   ),
                 ),
               ],
@@ -213,10 +215,22 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
 
   void _save() {
     final amt = double.tryParse(_amount.text);
-    if (amt == null || amt <= 0 || _walletId == null || _category == null) {
+    if (amt == null || amt <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Please fill in amount, category, and wallet.')),
+            content: Text('Please enter an amount greater than ₱0.')),
+      );
+      return;
+    }
+    if (_category == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a category.')),
+      );
+      return;
+    }
+    if (_walletId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a wallet.')),
       );
       return;
     }

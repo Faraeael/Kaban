@@ -39,6 +39,7 @@ class ModelPicker extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
+      useSafeArea: true,
       builder: (_) => ModelPicker(
         currentModelId: currentModelId,
         onSelected: onSelected,
@@ -327,6 +328,7 @@ class _ModelPickerState extends State<ModelPicker> {
                                 isDense: true,
                                 suffixIcon: IconButton(
                                   icon: const Icon(Icons.check_rounded),
+                                  tooltip: 'Apply custom model',
                                   onPressed: () {
                                     final trimmed =
                                         _customController.text.trim();

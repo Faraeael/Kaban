@@ -91,6 +91,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
   void _showImageSourceSheet() {
     showModalBottomSheet(
       context: context,
+      useSafeArea: true,
       builder: (ctx) => SafeArea(
         child: Wrap(
           children: [
@@ -122,7 +123,8 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
         return;
       }
       final target = _scroll.position.maxScrollExtent;
-      if (animate) {
+      final reduceMotion = mounted && MediaQuery.of(context).disableAnimations;
+      if (animate && !reduceMotion) {
         _scroll.animateTo(
           target,
           duration: const Duration(milliseconds: 250),
@@ -131,7 +133,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       } else {
         _scroll.jumpTo(target);
       }
-      if (checkCards) {
+      if (checkCards && !reduceMotion) {
         Future.delayed(const Duration(milliseconds: 100), () {
           if (mounted &&
               _scroll.hasClients &&
@@ -141,6 +143,14 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
               duration: const Duration(milliseconds: 150),
               curve: Curves.easeOut,
             );
+          }
+        });
+      } else if (checkCards && reduceMotion) {
+        Future.delayed(const Duration(milliseconds: 50), () {
+          if (mounted &&
+              _scroll.hasClients &&
+              _scroll.position.maxScrollExtent > target) {
+            _scroll.jumpTo(_scroll.position.maxScrollExtent);
           }
         });
       }
@@ -389,7 +399,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                   style: FilledButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.error),
                   onPressed: () => Navigator.pop(dialogCtx, true),
-                  child: const Text('Delete'),
+                  child: const Text('Delete Debt'),
                 ),
               ],
             ),
@@ -501,7 +511,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                   style: FilledButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.error),
                   onPressed: () => Navigator.pop(dialogCtx, true),
-                  child: const Text('Delete'),
+                  child: const Text('Delete Goal'),
                 ),
               ],
             ),
@@ -563,7 +573,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                     style: FilledButton.styleFrom(
                         backgroundColor: Theme.of(context).colorScheme.error),
                     onPressed: () => Navigator.pop(dialogCtx, true),
-                    child: const Text('Delete'),
+                    child: const Text('Delete Recurring'),
                   ),
                 ],
               ),
@@ -1005,8 +1015,9 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       session.busy = false;
     }
 
-    final snapshot = _buildSnapshot();
-    final prompts = service?.suggestedPrompts(snapshot) ?? const <String>[];
+    final prompts = messages.isEmpty
+        ? (service?.suggestedPrompts(_buildSnapshot()) ?? const <String>[])
+        : const <String>[];
     final t = Theme.of(context);
 
     final isRemote = settings.aiProvider != AIProvider.local;
@@ -1091,7 +1102,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                         child: const Text('Cancel')),
                     FilledButton(
                         onPressed: () => Navigator.pop(dialogCtx, true),
-                        child: const Text('Clear')),
+                        child: const Text('Clear Conversation')),
                   ],
                 ),
               );
@@ -1244,7 +1255,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, size: 18),
-                    tooltip: 'Remove',
+                    tooltip: 'Remove attached image',
                     onPressed: () => setState(() {
                       _attachedImage = null;
                       _attachedImageBytes = null;
@@ -1285,6 +1296,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                   ),
                   const SizedBox(width: 8),
                   IconButton.filled(
+                    tooltip: _session.busy ? 'Thinking...' : 'Send message',
                     onPressed: _session.busy
                         ? null
                         : () {

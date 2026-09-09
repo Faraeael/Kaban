@@ -238,9 +238,10 @@ class ActionCard extends StatelessWidget {
                     onDismiss();
                   },
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    minimumSize: const Size(0, 48),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   child: Text(
                     'Skip',
@@ -295,9 +296,10 @@ class ActionCard extends StatelessWidget {
                       style: FilledButton.styleFrom(
                         backgroundColor: isDestructive ? scheme.error : null,
                         foregroundColor: isDestructive ? scheme.onError : null,
-                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        minimumSize: const Size(0, 48),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                       icon: Icon(confirmIcon, size: 16),
                       label: Text(confirmLabel,

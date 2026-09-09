@@ -27,6 +27,11 @@ class DebtPayoffEntry {
 class PayoffCalculator {
   static const int _maxMonths = 600; // 50-year safety cap
 
+  DebtPayoffResult? _cachedResult;
+  List<Debt>? _cachedDebts;
+  double? _cachedExtraMonthlyPayment;
+  DebtStrategy? _cachedStrategy;
+
   DebtPayoffResult simulate({
     required List<Debt> debts,
     required double extraMonthlyPayment,
@@ -35,6 +40,13 @@ class PayoffCalculator {
     if (debts.isEmpty) {
       return const DebtPayoffResult(
           entries: [], totalMonths: 0, totalInterestPaid: 0);
+    }
+
+    if (_cachedResult != null &&
+        _cachedExtraMonthlyPayment == extraMonthlyPayment &&
+        _cachedStrategy == strategy &&
+        (identical(_cachedDebts, debts) || _debtsEqual(_cachedDebts, debts))) {
+      return _cachedResult!;
     }
 
     final ordered = [...debts];
@@ -47,67 +59,102 @@ class PayoffCalculator {
         break;
     }
 
-    final balances = <String, double>{
-      for (final d in ordered) d.id: d.balance,
-    };
-    final interest = <String, double>{
-      for (final d in ordered) d.id: 0.0,
-    };
-    final payoffMonth = <String, int>{};
+    final count = ordered.length;
+    final balances = List<double>.generate(count, (i) => ordered[i].balance);
+    final interest = List<double>.filled(count, 0.0);
+    final payoffMonth = List<int?>.filled(count, null);
+    final monthlyRates =
+        List<double>.generate(count, (i) => ordered[i].apr / 100.0 / 12.0);
+    final baseMinPayments = List<double>.generate(count, (i) {
+      final d = ordered[i];
+      return d.minPayment > 0
+          ? d.minPayment
+          : (d.schedule == DebtSchedule.fixed &&
+                  d.remainingPayments != null &&
+                  d.remainingPayments! > 0
+              ? d.balance / d.remainingPayments!
+              : 0.0);
+    });
+
+    int activeCount = 0;
+    for (var i = 0; i < count; i++) {
+      if (balances[i] > 0.005) {
+        activeCount++;
+      }
+    }
+
+    if (activeCount == 0) {
+      final emptyEntries = List<DebtPayoffEntry>.generate(
+        count,
+        (i) => DebtPayoffEntry(
+          debt: ordered[i],
+          monthsToPayoff: 0,
+          interestPaid: 0,
+        ),
+      );
+      final emptyResult = DebtPayoffResult(
+        entries: emptyEntries,
+        totalMonths: 0,
+        totalInterestPaid: 0,
+      );
+      _cachedDebts = debts;
+      _cachedExtraMonthlyPayment = extraMonthlyPayment;
+      _cachedStrategy = strategy;
+      _cachedResult = emptyResult;
+      return emptyResult;
+    }
 
     int month = 0;
-    while (month < _maxMonths) {
-      final stillActive = balances.values.any((b) => b > 0.005);
-      if (!stillActive) break;
+    while (month < _maxMonths && activeCount > 0) {
       month++;
 
-      for (final d in ordered) {
-        final bal = balances[d.id]!;
+      // 1. Accrue monthly interest
+      for (var i = 0; i < count; i++) {
+        final bal = balances[i];
         if (bal <= 0) continue;
-        final monthlyRate = d.apr / 100.0 / 12.0;
-        final interestThisMonth = bal * monthlyRate;
-        balances[d.id] = bal + interestThisMonth;
-        interest[d.id] = (interest[d.id] ?? 0) + interestThisMonth;
+        final interestThisMonth = bal * monthlyRates[i];
+        balances[i] = bal + interestThisMonth;
+        interest[i] += interestThisMonth;
       }
 
+      // 2. Minimum payments
       double availableCash = extraMonthlyPayment;
-      for (final d in ordered) {
-        if (balances[d.id]! <= 0) continue;
-        final baseMinPayment = d.minPayment > 0
-            ? d.minPayment
-            : (d.schedule == DebtSchedule.fixed &&
-                    d.remainingPayments != null &&
-                    d.remainingPayments! > 0
-                ? d.balance / d.remainingPayments!
-                : 0.0);
-        final minPay = baseMinPayment.clamp(0.0, balances[d.id]!);
-        balances[d.id] = balances[d.id]! - minPay;
+      for (var i = 0; i < count; i++) {
+        final bal = balances[i];
+        if (bal <= 0) continue;
+        final baseMinPayment = baseMinPayments[i];
+        final minPay = baseMinPayment.clamp(0.0, bal);
+        balances[i] = bal - minPay;
         availableCash += (baseMinPayment - minPay);
       }
 
-      for (final d in ordered) {
-        if (balances[d.id]! <= 0) continue;
+      // 3. Extra payment cascade
+      for (var i = 0; i < count; i++) {
+        final bal = balances[i];
+        if (bal <= 0) continue;
         if (availableCash <= 0) break;
-        final pay = availableCash.clamp(0, balances[d.id]!);
-        balances[d.id] = balances[d.id]! - pay;
+        final pay = availableCash.clamp(0.0, bal);
+        balances[i] = bal - pay;
         availableCash -= pay;
       }
 
-      for (final d in ordered) {
-        if (balances[d.id]! <= 0.005 && !payoffMonth.containsKey(d.id)) {
-          balances[d.id] = 0;
-          payoffMonth[d.id] = month;
+      // 4. Payoff check
+      for (var i = 0; i < count; i++) {
+        if (balances[i] <= 0.005 && payoffMonth[i] == null) {
+          balances[i] = 0;
+          payoffMonth[i] = month;
+          activeCount--;
         }
       }
     }
 
-    final entries = ordered.map((d) {
+    final entries = List<DebtPayoffEntry>.generate(count, (i) {
       return DebtPayoffEntry(
-        debt: d,
-        monthsToPayoff: payoffMonth[d.id] ?? month,
-        interestPaid: interest[d.id] ?? 0,
+        debt: ordered[i],
+        monthsToPayoff: payoffMonth[i] ?? month,
+        interestPaid: interest[i],
       );
-    }).toList();
+    });
 
     final totalMonths = entries.isEmpty
         ? 0
@@ -116,11 +163,25 @@ class PayoffCalculator {
     final totalInterest =
         entries.fold<double>(0, (sum, e) => sum + e.interestPaid);
 
-    return DebtPayoffResult(
+    final result = DebtPayoffResult(
       entries: entries,
       totalMonths: totalMonths,
       totalInterestPaid: totalInterest,
     );
+
+    _cachedDebts = debts;
+    _cachedExtraMonthlyPayment = extraMonthlyPayment;
+    _cachedStrategy = strategy;
+    _cachedResult = result;
+    return result;
+  }
+
+  bool _debtsEqual(List<Debt>? a, List<Debt> b) {
+    if (a == null || a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   double totalMinimumPayment(List<Debt> debts) =>

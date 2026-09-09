@@ -35,94 +35,97 @@ class _TransferSheetState extends ConsumerState<TransferSheet> {
     if (_fromId == null && wallets.isNotEmpty) _fromId = wallets.first.id;
     if (_toId == null && wallets.length > 1) _toId = wallets[1].id;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-          20, 12, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: t.colorScheme.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Transfer'),
+        leading: const CloseButton(),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                  20, 12, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Transfer between wallets',
+                    style: t.textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Net worth stays the same. Both balances adjust.',
+                    style: t.textTheme.bodySmall
+                        ?.copyWith(color: t.colorScheme.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text('From',
+                      style:
+                          TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    initialValue: _fromId,
+                    items: wallets
+                        .map((w) =>
+                            DropdownMenuItem(value: w.id, child: Text(w.name)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _fromId = v),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('To',
+                      style:
+                          TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    initialValue: _toId,
+                    items: wallets
+                        .where((w) => w.id != _fromId)
+                        .map((w) =>
+                            DropdownMenuItem(value: w.id, child: Text(w.name)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _toId = v),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _amount,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                        labelText: 'Amount', prefixText: '₱ '),
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _note,
+                    decoration:
+                        const InputDecoration(labelText: 'Note (optional)'),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _save,
+                          child: const Text('Transfer'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 14),
-            Text(
-              'Transfer between wallets',
-              style:
-                  t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Net worth stays the same. Both balances adjust.',
-              style: t.textTheme.bodySmall
-                  ?.copyWith(color: t.colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 18),
-            const Text('From',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
-              initialValue: _fromId,
-              items: wallets
-                  .map(
-                      (w) => DropdownMenuItem(value: w.id, child: Text(w.name)))
-                  .toList(),
-              onChanged: (v) => setState(() => _fromId = v),
-            ),
-            const SizedBox(height: 12),
-            const Text('To',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
-              initialValue: _toId,
-              items: wallets
-                  .where((w) => w.id != _fromId)
-                  .map(
-                      (w) => DropdownMenuItem(value: w.id, child: Text(w.name)))
-                  .toList(),
-              onChanged: (v) => setState(() => _toId = v),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: _amount,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration:
-                  const InputDecoration(labelText: 'Amount', prefixText: '₱ '),
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _note,
-              decoration: const InputDecoration(labelText: 'Note (optional)'),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: _save,
-                    child: const Text('Transfer'),
-                  ),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );
