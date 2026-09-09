@@ -12,6 +12,7 @@ import 'package:finance_tracker/services/ai/remote_coach.dart';
 import 'package:finance_tracker/router/app_router.dart';
 import 'package:finance_tracker/screens/dashboard/widgets/debt_progress.dart';
 import 'package:finance_tracker/screens/dashboard/widgets/summary_card.dart';
+import 'package:finance_tracker/screens/onboarding/help_screen.dart';
 import 'package:finance_tracker/theme/app_theme.dart';
 
 void main() {
@@ -87,6 +88,25 @@ void main() {
 
       expect(lightTheme.bottomSheetTheme.constraints?.maxWidth, 560);
       expect(darkTheme.bottomSheetTheme.constraints?.maxWidth, 560);
+    });
+
+    testWidgets(
+        'HelpScreen enforces 720dp maxWidth constraint on wide viewports',
+        (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: HelpScreen(),
+        ),
+      );
+
+      final box = tester.widget<ConstrainedBox>(find
+          .ancestor(
+              of: find.byType(Column), matching: find.byType(ConstrainedBox))
+          .first);
+      expect(box.constraints.maxWidth, 720);
     });
   });
 

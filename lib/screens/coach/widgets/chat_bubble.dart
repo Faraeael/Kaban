@@ -113,19 +113,24 @@ class ChatBubble extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (hasValidImage) ...[
-                              GestureDetector(
-                                onTap: () =>
-                                    _showFullImage(context, message.imagePath!),
-                                child: ClipRRect(
+                              Semantics(
+                                button: true,
+                                label: 'View receipt image full screen',
+                                child: InkWell(
+                                  onTap: () =>
+                                      _showFullImage(context, message.imagePath!),
                                   borderRadius: BorderRadius.circular(12),
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxHeight: 260,
-                                      maxWidth: 240,
-                                    ),
-                                    child: Image.file(
-                                      File(message.imagePath!),
-                                      fit: BoxFit.cover,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxHeight: 260,
+                                        maxWidth: 240,
+                                      ),
+                                      child: Image.file(
+                                        File(message.imagePath!),
+                                        fit: BoxFit.cover,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -210,23 +215,23 @@ class ChatBubble extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFD97706).withValues(alpha: 0.12),
+                  color: t.colorScheme.tertiary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                      color: const Color(0xFFD97706).withValues(alpha: 0.3)),
+                      color: t.colorScheme.tertiary.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.warning_amber_rounded,
-                        size: 16, color: Color(0xFFD97706)),
+                    Icon(Icons.warning_amber_rounded,
+                        size: 16, color: t.colorScheme.tertiary),
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
                         w,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFFD97706),
+                          color: t.colorScheme.tertiary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

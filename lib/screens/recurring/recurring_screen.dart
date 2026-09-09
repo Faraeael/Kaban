@@ -85,12 +85,17 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen>
           );
         },
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildRecurringTab(t, recurring, activeWallets),
-          _buildSubscriptionsTab(t, subs, suggestions, totalMonthly),
-        ],
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 840),
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildRecurringTab(t, recurring, activeWallets),
+              _buildSubscriptionsTab(t, subs, suggestions, totalMonthly),
+            ],
+          ),
+        ),
       ),
     );
   }

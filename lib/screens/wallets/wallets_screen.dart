@@ -498,7 +498,7 @@ class _AddWalletSheetState extends State<_AddWalletSheet> {
                 if (i == kWalletPresets.length) {
                   return _PresetTile(
                     label: 'Custom',
-                    color: const Color(0xFF37474F),
+                    color: t.colorScheme.outline,
                     icon: Icons.edit_rounded,
                     selected: _selectedName == 'Custom',
                     onTap: () => setState(() => _selectedName = 'Custom'),

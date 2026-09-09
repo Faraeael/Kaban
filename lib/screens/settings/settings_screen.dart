@@ -52,9 +52,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+            children: [
           _section('AI Coach', t),
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -532,9 +535,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             style: t.textTheme.bodySmall
                 ?.copyWith(color: t.colorScheme.onSurfaceVariant),
           ),
-        ],
+          ],
+        ),
       ),
-    );
+    ),
+  );
   }
 
   Future<void> _exportBackup(BuildContext context) async {

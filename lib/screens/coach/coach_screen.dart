@@ -1057,8 +1057,8 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                       decoration: BoxDecoration(
                         color: isRemote
                             ? (remoteEnabled
-                                ? const Color(0xFF10B981)
-                                : const Color(0xFFF59E0B))
+                                ? t.colorScheme.primary
+                                : t.colorScheme.tertiary)
                             : t.colorScheme.primary,
                         shape: BoxShape.circle,
                       ),

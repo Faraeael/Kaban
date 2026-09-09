@@ -172,30 +172,36 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
     final t = Theme.of(context);
     final selected = _type == type;
     return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() {
-          _type = type;
-          _category = null;
-        }),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: selected
-                ? color.withValues(alpha: 0.18)
-                : t.colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: selected ? color : Colors.transparent,
-              width: 1.5,
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: '$label transaction type',
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => setState(() {
+            _type = type;
+            _category = null;
+          }),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: selected
+                  ? color.withValues(alpha: 0.18)
+                  : t.colorScheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: selected ? color : Colors.transparent,
+                width: 1.5,
+              ),
             ),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: selected ? color : t.colorScheme.onSurface,
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: selected ? color : t.colorScheme.onSurface,
+              ),
             ),
           ),
         ),

@@ -77,7 +77,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       child: Scaffold(
         backgroundColor: t.colorScheme.surface,
         body: SafeArea(
-          child: Column(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Column(
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 14, 12, 0),
@@ -147,7 +150,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }
 

@@ -11,7 +11,7 @@ class InsightBanner extends StatelessWidget {
       case InsightSeverity.info:
         return s.primary;
       case InsightSeverity.warn:
-        return const Color(0xFFD97706);
+        return s.tertiary;
       case InsightSeverity.alert:
         return s.error;
     }

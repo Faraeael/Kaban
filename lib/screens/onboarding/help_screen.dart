@@ -161,7 +161,10 @@ class _HelpScreenState extends State<HelpScreen> {
       appBar: AppBar(
         title: const Text('Help'),
       ),
-      body: Column(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
@@ -196,7 +199,9 @@ class _HelpScreenState extends State<HelpScreen> {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }
 

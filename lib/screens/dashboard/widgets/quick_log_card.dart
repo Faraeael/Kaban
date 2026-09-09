@@ -289,15 +289,20 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
-    return GestureDetector(
-      onTap: onAdd,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Text(
-            'Tap ⚙ to add your quick presets',
-            style:
-                TextStyle(fontSize: 13, color: t.colorScheme.onSurfaceVariant),
+    return Semantics(
+      button: true,
+      label: 'Configure quick log presets',
+      child: InkWell(
+        onTap: onAdd,
+        borderRadius: BorderRadius.circular(10),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+            child: Text(
+              'Tap ⚙ to add your quick presets',
+              style: TextStyle(
+                  fontSize: 13, color: t.colorScheme.onSurfaceVariant),
+            ),
           ),
         ),
       ),
