@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../../models/transaction.dart';
 import '../../state/data_providers.dart';
 import 'widgets/category_chip.dart';
+import '../../utils/formatters.dart';
 
 const _uuid = Uuid();
 
@@ -29,7 +30,7 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
     super.initState();
     _type = widget.initial?.type ?? TransactionType.expense;
     _amount = TextEditingController(
-        text: widget.initial?.amount.toStringAsFixed(0) ?? '');
+        text: formatInputAmount(widget.initial?.amount));
     _note = TextEditingController(text: widget.initial?.note ?? '');
     _category = widget.initial?.category;
     _walletId = widget.initial?.walletId;

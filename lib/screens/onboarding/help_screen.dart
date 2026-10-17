@@ -92,6 +92,24 @@ class _HelpScreenState extends State<HelpScreen> {
       navTo: '/coach',
     ),
     _HelpEntry(
+      icon: Icons.vpn_key_rounded,
+      task: 'I want to connect the AI coach to a provider',
+      steps: [
+        'Open Settings → AI Coach.',
+        'Pick a provider — Local needs no key. The others do.',
+        'CommandCode — get a key from your CommandCode dashboard '
+            '(Provider plan or higher).',
+        'OpenCode — paste your OpenCode API key.',
+        'OpenRouter — sign up at openrouter.ai and create a key at '
+            'openrouter.ai/keys (free models tagged ":free" work without a paid plan).',
+        'Google (Gemini) — get a free API key at aistudio.google.com/apikey. '
+            'Free tier has per-minute rate limits.',
+        'Toggle "Allow remote AI" on, paste the key, then tap "Test API" '
+            'to confirm it works.',
+      ],
+      navTo: '/settings',
+    ),
+    _HelpEntry(
       icon: Icons.notifications_active_rounded,
       task: 'I want auto-capture from GCash / Maya / BDO',
       steps: [

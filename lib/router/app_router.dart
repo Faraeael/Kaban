@@ -35,7 +35,10 @@ final appRouter = GoRouter(
         GoRoute(path: '/wallets', builder: (_, __) => const WalletsScreen()),
         GoRoute(
             path: '/transactions',
-            builder: (_, __) => const TransactionsScreen()),
+            builder: (_, state) => TransactionsScreen(
+                  initialWalletId: state.uri.queryParameters['walletId'],
+                  initialCategory: state.uri.queryParameters['category'],
+                )),
         GoRoute(path: '/debts', builder: (_, __) => const DebtsScreen()),
         GoRoute(path: '/coach', builder: (_, __) => const CoachScreen()),
       ],

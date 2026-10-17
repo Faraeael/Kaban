@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:finance_tracker/data/database.dart';
 import 'package:finance_tracker/data/recurring_repository.dart';
 import 'package:finance_tracker/models/recurring_transaction.dart';
+import 'package:finance_tracker/data/subscription_repository.dart';
+import 'package:finance_tracker/models/subscription.dart';
 import 'package:finance_tracker/models/transaction.dart';
 import 'package:finance_tracker/services/recurring_engine.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -135,5 +137,87 @@ void main() {
 
     final result = await engine.processDue(DateTime(2026, 9, 1));
     expect(result.created, 0);
+  });
+
+  test('concurrent processDue runs are idempotent and never duplicate entries',
+      () async {
+    await addWallet();
+    await repo.insert(RecurringTransaction(
+      id: 'r5',
+      name: 'Jeepney fare',
+      amount: 15,
+      type: TransactionType.expense,
+      category: 'Transport',
+      intervalDays: 1,
+      nextDue: DateTime(2026, 9, 1, 8),
+      walletId: 'w1',
+    ));
+
+    final now = DateTime(2026, 9, 2, 9);
+    final engineA = RecurringEngine(db);
+    final engineB = RecurringEngine(db);
+    final results = await Future.wait([
+      engineA.processDue(now),
+      engineB.processDue(now),
+    ]);
+
+    final totalCreated = results[0].created + results[1].created;
+    expect(totalCreated, 2);
+
+    final txns = await rawDb
+        .query('transactions', where: 'wallet_id = ?', whereArgs: ['w1']);
+    expect(txns, hasLength(2));
+  });
+
+  test('SubscriptionRepository.recordPayment is atomic across subscription and transaction tables',
+      () async {
+    await addWallet();
+    final subRepo = SubscriptionRepository(db);
+    final initialDate = DateTime(2026, 10, 1);
+    final sub = Subscription(
+      id: 'sub-spotify',
+      name: 'Spotify',
+      amount: 149,
+      cadence: Cadence.monthly,
+      nextBillingDate: initialDate,
+      category: 'Entertainment',
+      walletId: 'w1',
+    );
+    await subRepo.insert(sub);
+
+    final nextDate = DateTime(2026, 11, 1);
+    final updated = await subRepo.recordPayment(
+      subscription: sub,
+      walletId: 'w1',
+      nextDate: nextDate,
+      transactionId: 'txn-spotify-1',
+    );
+
+    expect(updated.nextBillingDate, nextDate);
+
+    // Both table writes verified:
+    final storedSubs = await subRepo.listAll();
+    expect(storedSubs.single.nextBillingDate, nextDate);
+
+    final storedTxns = await rawDb
+        .query('transactions', where: 'id = ?', whereArgs: ['txn-spotify-1']);
+    expect(storedTxns, hasLength(1));
+    expect(storedTxns.first['amount'], 149.0);
+    expect(storedTxns.first['category'], 'Entertainment');
+    expect(storedTxns.first['wallet_id'], 'w1');
+
+    // Second payment attempt with stale billing date throws StateError and rolls back:
+    expect(
+      () => subRepo.recordPayment(
+        subscription: sub, // sub has stale initialDate 2026-10-01
+        walletId: 'w1',
+        nextDate: DateTime(2026, 12, 1),
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    // Assert no second transaction was written:
+    final allTxns = await rawDb.query('transactions', where: 'wallet_id = ?', whereArgs: ['w1']);
+    expect(allTxns, hasLength(1));
   });
 }

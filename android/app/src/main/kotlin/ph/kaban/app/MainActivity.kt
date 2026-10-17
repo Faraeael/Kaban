@@ -28,8 +28,21 @@ class MainActivity : FlutterFragmentActivity() {
                     }
                     "syncWhitelist" -> {
                         val list = call.argument<List<String>>("packages") ?: emptyList()
+                        val enabled = call.argument<Boolean>("enabled")
                         val prefs = getSharedPreferences("finance_tracker", MODE_PRIVATE)
-                        prefs.edit().putStringSet("auto_capture_packages", list.toSet()).apply()
+                        val editor = prefs.edit().putStringSet("auto_capture_packages", list.toSet())
+                        if (enabled != null) {
+                            editor.putBoolean("auto_capture_enabled", enabled)
+                        }
+                        editor.apply()
+                        result.success(true)
+                    }
+                    "peekPendingNotifications" -> {
+                        result.success(FinanceNotificationListener.peekPending(this))
+                    }
+                    "ackPendingNotifications" -> {
+                        val keys = call.argument<List<String>>("keys") ?: emptyList()
+                        FinanceNotificationListener.ackPending(this, keys.toSet())
                         result.success(true)
                     }
                     "setSecure" -> {
@@ -78,6 +91,22 @@ class MainActivity : FlutterFragmentActivity() {
                         // Tell the widget to refresh its views
                         val refreshIntent = Intent(QuickFareWidgetProvider.ACTION_REFRESH)
                         refreshIntent.setClass(this, QuickFareWidgetProvider::class.java)
+                        sendBroadcast(refreshIntent)
+                        result.success(true)
+                    }
+                    "syncQrDeck" -> {
+                        val deck = call.argument<List<Map<String, Any>>>("deck") ?: emptyList()
+                        val prefs = getSharedPreferences(QuickQrWidgetProvider.PREFS_NAME, MODE_PRIVATE)
+                        val arr = org.json.JSONArray()
+                        for (item in deck) {
+                            arr.put(org.json.JSONObject(item))
+                        }
+                        prefs.edit()
+                            .putString(QuickQrWidgetProvider.KEY_QR_DECK, arr.toString())
+                            .putInt(QuickQrWidgetProvider.KEY_QR_COUNT, deck.size)
+                            .apply()
+                        val refreshIntent = Intent(QuickQrWidgetProvider.ACTION_REFRESH)
+                        refreshIntent.setClass(this, QuickQrWidgetProvider::class.java)
                         sendBroadcast(refreshIntent)
                         result.success(true)
                     }

@@ -1,23 +1,14 @@
 import 'dart:typed_data';
 
+import '../coach_actions.dart';
 import 'coach_service.dart';
-
+import '../../utils/formatters.dart';
 /// On-device coach. Rule-based but with intent scoring so the same question
 /// always picks the best handler, and so a question that doesn't match any
 /// pattern falls through to a *specific* suggestion based on the user's
 /// actual data instead of a generic feature list.
 class LocalCoach implements CoachService {
-  static String _peso(double v) {
-    final n = v.abs().toInt();
-    final s = n.toString();
-    final buf = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-      buf.write(s[i]);
-    }
-    final sign = v < 0 ? '-' : '';
-    return '$sign₱${buf.toString()}';
-  }
+  static String _peso(double v) => peso(v);
 
   @override
   Future<CoachReply> ask(String userMessage, FinanceSnapshot snapshot,
@@ -104,6 +95,15 @@ class LocalCoach implements CoachService {
       return CoachReply(
           text: others.first.run(), actions: const [], warnings: const []);
     }
+    final parsedActions =
+        CoachActionParser().parse(assistantReply: '', userMessage: userMessage);
+    if (parsedActions.isNotEmpty) {
+      return CoachReply(
+        text: 'I prepared the action card below — tap **Confirm** to save it.',
+        actions: parsedActions,
+        warnings: const [],
+      );
+    }
     return CoachReply(
         text: _fallback(snapshot), actions: const [], warnings: const []);
   }
@@ -134,6 +134,18 @@ class LocalCoach implements CoachService {
   // ---------------- handlers ----------------
 
   String _overspend(FinanceSnapshot snapshot) {
+    if (snapshot.budgets.isNotEmpty) {
+      final overspent = <String>[];
+      for (final b in snapshot.budgets.entries) {
+        final spent = snapshot.monthExpenseByCategory[b.key] ?? 0;
+        if (spent > b.value) {
+          overspent.add('**${b.key}**: ${_peso(spent)} (exceeded ${_peso(b.value)} limit by ${_peso(spent - b.value)})');
+        }
+      }
+      if (overspent.isNotEmpty) {
+        return '⚠️ Over budget this month:\n${overspent.join('\n')}';
+      }
+    }
     if (snapshot.monthExpenseByCategory.isEmpty) {
       return 'No spending recorded this month yet — your top categories will show up here as you log transactions.';
     }

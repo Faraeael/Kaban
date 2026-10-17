@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../../models/debt.dart';
 import '../../../models/wallet.dart';
 import '../../../services/coach_actions.dart';
 import '../../../utils/formatters.dart';
-
+import '../../wallets/widgets/wallet_tile.dart';
 class ActionCard extends StatelessWidget {
   final CoachAction action;
   final List<Wallet> wallets;
@@ -41,6 +40,11 @@ class ActionCard extends StatelessWidget {
           a.isIncome ? Icons.trending_up_rounded : Icons.trending_down_rounded,
           a.isIncome ? 'Log income' : 'Log expense',
           '${a.isIncome ? '+' : '−'}${pesoExact(a.amount)} in ${a.category}${a.walletName != null ? ' (${a.walletName})' : ''}${a.note != null ? ' — ${a.note}' : ''}',
+        ),
+      TransferAction a => (
+          Icons.swap_horiz_rounded,
+          'Transfer',
+          '${pesoExact(a.amount)} from ${a.fromWalletName} → ${a.toWalletName}${a.note != null ? ' — ${a.note}' : ''}',
         ),
       AdjustWalletBalanceAction a => (
           Icons.tune_rounded,
@@ -119,6 +123,21 @@ class ActionCard extends StatelessWidget {
           Icons.archive_rounded,
           'Archive wallet',
           'Archive "${a.name}"',
+        ),
+      CreateBudgetAction a => (
+          Icons.donut_small_rounded,
+          'Set budget',
+          'Cap monthly spending for ${a.category} at ${pesoExact(a.monthlyLimit)}/mo',
+        ),
+      UpdateBudgetAction a => (
+          Icons.donut_small_rounded,
+          'Update budget',
+          '${a.category}${a.newCategory != null ? ' → ${a.newCategory}' : ''}${a.newMonthlyLimit != null ? ' · limit ${pesoExact(a.newMonthlyLimit!)}/mo' : ''}',
+        ),
+      DeleteBudgetAction a => (
+          Icons.delete_outline_rounded,
+          'Delete budget',
+          'Remove budget cap for "${a.category}"',
         ),
     };
 
@@ -203,16 +222,7 @@ class ActionCard extends StatelessWidget {
                     value: w.id,
                     child: Row(
                       children: [
-                        SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: SvgPicture.asset(
-                            w.logoAsset,
-                            fit: BoxFit.contain,
-                            placeholderBuilder: (_) =>
-                                Icon(w.type.icon, size: 14, color: w.color),
-                          ),
-                        ),
+                        WalletLogo(wallet: w, size: 20),
                         const SizedBox(width: 8),
                         Text(
                           w.name,

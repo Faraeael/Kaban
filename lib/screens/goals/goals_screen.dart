@@ -12,6 +12,27 @@ const _uuid = Uuid();
 class GoalsScreen extends ConsumerStatefulWidget {
   const GoalsScreen({super.key});
 
+  static ({DateTime start, DateTime end, double limitMultiplier})
+      budgetWindowFor(DateTime now, {required bool quincenaMode}) {
+    if (quincenaMode) {
+      final isFirstHalf = now.day <= 15;
+      final start = isFirstHalf
+          ? DateTime(now.year, now.month, 1)
+          : DateTime(now.year, now.month, 16);
+      final end = isFirstHalf
+          ? DateTime(now.year, now.month, 15, 23, 59, 59)
+          : DateTime(now.year, now.month + 1, 1)
+              .subtract(const Duration(seconds: 1));
+      return (start: start, end: end, limitMultiplier: 0.5);
+    }
+    return (
+      start: DateTime(now.year, now.month, 1),
+      end: DateTime(now.year, now.month + 1, 1)
+          .subtract(const Duration(seconds: 1)),
+      limitMultiplier: 1.0,
+    );
+  }
+
   @override
   ConsumerState<GoalsScreen> createState() => _GoalsScreenState();
 }
@@ -122,21 +143,24 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
 
         return Semantics(
           label: semanticLabel,
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: t.colorScheme.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isAchieved
-                    ? t.colorScheme.primary.withValues(alpha: 0.35)
-                    : Colors.transparent,
-                width: 1.2,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => _showEditGoal(context, g),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: t.colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isAchieved
+                      ? t.colorScheme.primary.withValues(alpha: 0.35)
+                      : Colors.transparent,
+                  width: 1.2,
+                ),
               ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 Row(
                   children: [
                     Expanded(
@@ -194,15 +218,28 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                           ),
                         ],
                       )
-                    else
+                    else ...[
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        onPressed: () => _showContributeGoal(context, g),
+                        icon: const Icon(Icons.add_rounded, size: 16),
+                        label: const Text('Add savings',
+                            style: TextStyle(fontSize: 12)),
+                      ),
+                      const SizedBox(width: 4),
                       Text('${(g.progress * 100).toStringAsFixed(0)}%',
                           style: const TextStyle(fontWeight: FontWeight.w700)),
+                    ],
                   ],
                 ),
               ],
             ),
           ),
-        );
+        ),
+      );
       },
     );
   }
@@ -244,24 +281,11 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
     final now = DateTime.now();
 
     // ── Quincena date window ────────────────────────────────────────────────
-    final DateTime windowStart;
-    final DateTime windowEnd;
-    final double limitMultiplier; // fraction of monthly limit to use
-
-    if (_quincenaMode) {
-      final cutoff = now.day <= 15 ? 15 : 31;
-      windowStart = DateTime(now.year, now.month, 1);
-      windowEnd = cutoff == 15
-          ? DateTime(now.year, now.month, 15, 23, 59, 59)
-          : DateTime(now.year, now.month + 1, 1)
-              .subtract(const Duration(seconds: 1));
-      limitMultiplier = 0.5;
-    } else {
-      windowStart = DateTime(now.year, now.month, 1);
-      windowEnd = DateTime(now.year, now.month + 1, 1)
-          .subtract(const Duration(seconds: 1));
-      limitMultiplier = 1.0;
-    }
+    final window =
+        GoalsScreen.budgetWindowFor(now, quincenaMode: _quincenaMode);
+    final windowStart = window.start;
+    final windowEnd = window.end;
+    final limitMultiplier = window.limitMultiplier;
 
     // Sum expenses by category inside the window
     Map<String, double> spent = {};
@@ -363,19 +387,22 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
         return Semantics(
           label:
               'Budget for ${b.category}: ${peso(usedAmount)} spent of ${peso(effectiveLimit)} limit, ${(ratio * 100).toStringAsFixed(0)}% used$statusDesc.',
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: isOver
-                  ? t.colorScheme.errorContainer.withValues(alpha: 0.3)
-                  : t.colorScheme.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(14),
-              border: isOver
-                  ? Border.all(
-                      color: t.colorScheme.error.withValues(alpha: 0.4))
-                  : null,
-            ),
-            child: Column(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => _showEditBudget(context, b),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isOver
+                    ? t.colorScheme.errorContainer.withValues(alpha: 0.3)
+                    : t.colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(14),
+                border: isOver
+                    ? Border.all(
+                        color: t.colorScheme.error.withValues(alpha: 0.4))
+                    : null,
+              ),
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
@@ -453,7 +480,8 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
               ],
             ),
           ),
-        );
+        ),
+      );
       },
     );
   }
@@ -467,6 +495,97 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
     );
   }
 
+  void _showEditGoal(BuildContext context, Goal goal) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => _GoalSheet(initial: goal),
+    );
+  }
+
+  Future<void> _showContributeGoal(BuildContext context, Goal goal) async {
+    final amountCtrl = TextEditingController();
+    final wallets =
+        ref.read(walletListProvider).where((w) => !w.archived).toList();
+    String? selectedWalletId;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text('Add savings to "${goal.name}"'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: amountCtrl,
+                autofocus: true,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Amount',
+                  prefixText: '₱ ',
+                ),
+              ),
+              if (wallets.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String?>(
+                  initialValue: selectedWalletId,
+                  decoration: const InputDecoration(
+                    labelText: 'Deduct from wallet (optional)',
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('None (update goal only)'),
+                    ),
+                    for (final w in wallets)
+                      DropdownMenuItem<String?>(
+                        value: w.id,
+                        child: Text(w.name),
+                      ),
+                  ],
+                  onChanged: (v) => setDialogState(() => selectedWalletId = v),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final amt =
+                    double.tryParse(amountCtrl.text.replaceAll(',', ''));
+                if (amt == null || amt <= 0) return;
+                await ref
+                    .read(goalListProvider.notifier)
+                    .update(goal.copyWith(saved: goal.saved + amt));
+                if (selectedWalletId != null) {
+                  await ref.read(transactionListProvider.notifier).add(
+                        Transaction(
+                          id: _uuid.v4(),
+                          amount: amt,
+                          type: TransactionType.expense,
+                          category: 'Other',
+                          note: 'Contribution to ${goal.name}',
+                          date: DateTime.now(),
+                          walletId: selectedWalletId!,
+                        ),
+                      );
+                }
+                if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAddBudget(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -475,20 +594,42 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
       builder: (_) => const _BudgetSheet(),
     );
   }
+
+  void _showEditBudget(BuildContext context, Budget budget) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => _BudgetSheet(initial: budget),
+    );
+  }
 }
 
 class _GoalSheet extends ConsumerStatefulWidget {
-  const _GoalSheet();
+  final Goal? initial;
+  const _GoalSheet({this.initial});
 
   @override
   ConsumerState<_GoalSheet> createState() => _GoalSheetState();
 }
 
 class _GoalSheetState extends ConsumerState<_GoalSheet> {
-  final _name = TextEditingController();
-  final _target = TextEditingController();
-  final _saved = TextEditingController();
+  late final TextEditingController _name;
+  late final TextEditingController _target;
+  late final TextEditingController _saved;
   DateTime? _deadline;
+
+  @override
+  void initState() {
+    super.initState();
+    final g = widget.initial;
+    _name = TextEditingController(text: g?.name ?? '');
+    _target = TextEditingController(
+        text: g != null ? formatInputAmount(g.target) : '');
+    _saved = TextEditingController(
+        text: g != null ? formatInputAmount(g.saved) : '');
+    _deadline = g?.deadline;
+  }
 
   @override
   void dispose() {
@@ -501,6 +642,7 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
+    final isEdit = widget.initial != null;
     return Padding(
       padding: EdgeInsets.fromLTRB(
           20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
@@ -509,7 +651,7 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Add goal',
+            Text(isEdit ? 'Edit goal' : 'Add goal',
                 style: t.textTheme.titleLarge
                     ?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 14),
@@ -538,9 +680,9 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
                     onPressed: () async {
                       final picked = await showDatePicker(
                         context: context,
-                        initialDate:
+                        initialDate: _deadline ??
                             DateTime.now().add(const Duration(days: 90)),
-                        firstDate: DateTime.now(),
+                        firstDate: DateTime(2020),
                         lastDate:
                             DateTime.now().add(const Duration(days: 365 * 5)),
                       );
@@ -557,17 +699,35 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
             const SizedBox(height: 14),
             Row(
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+                if (isEdit) ...[
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: t.colorScheme.error,
+                      ),
+                      onPressed: () {
+                        ref
+                            .read(goalListProvider.notifier)
+                            .delete(widget.initial!.id);
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Delete'),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
+                  const SizedBox(width: 12),
+                ] else ...[
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
                 Expanded(
                   child: FilledButton(
                     onPressed: _save,
-                    child: const Text('Save Goal'),
+                    child: Text(isEdit ? 'Update Goal' : 'Save Goal'),
                   ),
                 ),
               ],
@@ -595,27 +755,41 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
       return;
     }
     final g = Goal(
-      id: _uuid.v4(),
+      id: widget.initial?.id ?? _uuid.v4(),
       name: _name.text.trim(),
       target: target,
       saved: saved,
       deadline: _deadline,
     );
-    ref.read(goalListProvider.notifier).add(g);
+    if (widget.initial != null) {
+      ref.read(goalListProvider.notifier).update(g);
+    } else {
+      ref.read(goalListProvider.notifier).add(g);
+    }
     Navigator.pop(context);
   }
 }
 
 class _BudgetSheet extends ConsumerStatefulWidget {
-  const _BudgetSheet();
+  final Budget? initial;
+  const _BudgetSheet({this.initial});
 
   @override
   ConsumerState<_BudgetSheet> createState() => _BudgetSheetState();
 }
 
 class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
-  final _amount = TextEditingController();
-  String _category = 'Food';
+  late final TextEditingController _amount;
+  late String _category;
+
+  @override
+  void initState() {
+    super.initState();
+    final b = widget.initial;
+    _amount = TextEditingController(
+        text: b != null ? formatInputAmount(b.monthlyLimit) : '');
+    _category = b?.category ?? 'Food';
+  }
 
   @override
   void dispose() {
@@ -626,6 +800,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
+    final isEdit = widget.initial != null;
     return Padding(
       padding: EdgeInsets.fromLTRB(
           20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
@@ -634,7 +809,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Add budget',
+            Text(isEdit ? 'Edit budget' : 'Add budget',
                 style: t.textTheme.titleLarge
                     ?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 14),
@@ -651,7 +826,9 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
                 'Subscriptions',
                 'Other',
               ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-              onChanged: (v) => setState(() => _category = v ?? 'Other'),
+              onChanged: isEdit
+                  ? null
+                  : (v) => setState(() => _category = v ?? 'Other'),
             ),
             const SizedBox(height: 10),
             TextField(
@@ -663,17 +840,35 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
             const SizedBox(height: 14),
             Row(
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+                if (isEdit) ...[
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: t.colorScheme.error,
+                      ),
+                      onPressed: () {
+                        ref
+                            .read(budgetListProvider.notifier)
+                            .delete(widget.initial!.id);
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Delete'),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
+                  const SizedBox(width: 12),
+                ] else ...[
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
                 Expanded(
                   child: FilledButton(
                     onPressed: _save,
-                    child: const Text('Save Budget'),
+                    child: Text(isEdit ? 'Update Budget' : 'Save Budget'),
                   ),
                 ),
               ],
@@ -695,7 +890,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
       return;
     }
     final b = Budget(
-      id: _uuid.v4(),
+      id: widget.initial?.id ?? _uuid.v4(),
       category: _category,
       monthlyLimit: amt,
     );

@@ -29,8 +29,7 @@ class RemoteCoach implements CoachService {
   }) : conversation = history ?? [];
 
   String _round(double v) {
-    if (!anonymizeBalances) return '₱${v.toStringAsFixed(2)}';
-    return '~₱${((v / 100).round() * 100).toStringAsFixed(0)}';
+    return '₱${v.toStringAsFixed(2)}';
   }
 
   String _buildSystemPrompt(FinanceSnapshot snapshot) {
@@ -54,7 +53,16 @@ class RemoteCoach implements CoachService {
     final catText = catLines.isEmpty
         ? '  (none)'
         : catLines.map((e) => '  - ${e.key}: ${_round(e.value)}').join('\n');
-
+    final budgetLines = snapshot.budgets.isEmpty
+        ? '  (none)'
+        : snapshot.budgets.entries
+            .map((e) => '  - ${e.key}: ${_round(e.value)}/mo limit')
+            .join('\n');
+    final subLines = snapshot.subscriptions.isEmpty
+        ? '  (none)'
+        : snapshot.subscriptions
+            .map((s) => '  - ${s.name}: ${_round(s.amount)} (${s.cadence}, ${s.category})')
+            .join('\n');
     if (!useActionSchema) {
       return '''You are a personal finance coach for a Filipino user. The data below has been anonymized — wallet names are general categories, no merchant names, no personal notes. ${anonymizeBalances ? 'All amounts are rounded to the nearest ₱100.' : 'Amounts are exact.'}
 
@@ -75,6 +83,12 @@ $debtLines
 
 ## Total debt
   ${_round(snapshot.totalDebt)}
+## Category Budgets
+$budgetLines
+
+## Active Subscriptions
+$subLines
+
 ''';
     }
 
@@ -107,7 +121,9 @@ Action types and field schemas:
 - delete_goal: { "type": "delete_goal", "name": string }
 - create_recurring: { "type": "create_recurring", "name": string, "amount": number, "frequency": "daily"|"weekly"|"bi-weekly"|"monthly"|"yearly", "kind": "income"|"expense", "category": string }
 - update_recurring: { "type": "update_recurring", "name": string, "new_amount"?: number, "new_frequency"?: string, "new_enabled"?: boolean, "delete"?: boolean }
-
+- create_budget: { "type": "create_budget", "category": string, "monthly_limit": number }
+- update_budget: { "type": "update_budget", "category": string, "new_category"?: string, "new_monthly_limit"?: number }
+- delete_budget: { "type": "delete_budget", "category": string }
 Strict rules:
 - YOUR CAPABILITIES & SKILLS: You are Kaban's AI Financial Coach with real in-app action card capabilities. When the user asks what you can do, what your skills are, or how to use the coach:
   1. Clearly state that you can actively manage their finances through interactive action cards: log expenses (commute fares, dining, shopping, bills) and income, create new wallets and adjust balances, set up and pay down debts, create savings goals, and track recurring expenses.
@@ -179,6 +195,12 @@ $debtLines
 
 ## Total debt
   ${_round(snapshot.totalDebt)}
+## Category Budgets
+$budgetLines
+
+## Active Subscriptions
+$subLines
+
 ''';
   }
 
@@ -293,16 +315,35 @@ $debtLines
   void _recordAssistantTurn(String rawContent, CoachReply reply) {
     if (useActionSchema) {
       final trimmed = rawContent.trim();
-      final storedContent =
-          (trimmed.startsWith('{') || trimmed.startsWith('```'))
-              ? trimmed
-              : json.encode({'reply': reply.text, 'actions': const []});
-      conversation.add((role: 'assistant', content: storedContent));
+      if (trimmed.startsWith('{') && reply.actions.isNotEmpty) {
+        conversation.add((role: 'assistant', content: trimmed));
+      } else {
+        final storedContent = json.encode({
+          'reply': reply.text,
+          'actions': reply.actions.map(actionToJsonMap).toList(),
+        });
+        conversation.add((role: 'assistant', content: storedContent));
+      }
     } else {
       conversation.add((role: 'assistant', content: reply.text));
     }
   }
 
+  /// Updates the last assistant turn in [conversation] when fallback regex
+  /// parsing in CoachScreen recovers actions that the model omitted.
+  void syncLastAssistantActions(String replyText, List<CoachAction> actions) {
+    if (!useActionSchema || actions.isEmpty) return;
+    final encoded = json.encode({
+      'reply': replyText,
+      'actions': actions.map(actionToJsonMap).toList(),
+    });
+    for (var i = conversation.length - 1; i >= 0; i--) {
+      if (conversation[i].role == 'assistant') {
+        conversation[i] = (role: 'assistant', content: encoded);
+        return;
+      }
+    }
+  }
   @visibleForTesting
   void recordAssistantTurnForTesting(String rawContent, CoachReply reply) =>
       _recordAssistantTurn(rawContent, reply);
@@ -311,6 +352,10 @@ $debtLines
   CoachReply parseEnvelopeForTesting(String rawText, String userMessage,
           {FinanceSnapshot? snapshot}) =>
       _parseEnvelope(rawText, userMessage, snapshot: snapshot);
+
+  @visibleForTesting
+  String systemPromptForTesting(FinanceSnapshot snapshot) =>
+      _buildSystemPrompt(snapshot);
 
   @override
   Future<CoachReply> ask(String userMessage, FinanceSnapshot snapshot,
@@ -325,14 +370,15 @@ $debtLines
 
   Future<CoachReply> _askOpenAI(String userMessage, FinanceSnapshot snapshot,
       {Uint8List? imageBytes, String? imageMimeType}) async {
-    // Guard against double-appending when the conversation was hydrated
-    // from the DB after the user's message was already persisted.
+    // Append the user's new turn. Even if the user sends the exact same text
+    // as an earlier completed turn (e.g. logging another ₱15 jeep fare after
+    // an assistant reply), conversation.last.role is 'assistant', so it is
+    // always appended as a fresh user turn.
     if (conversation.isEmpty ||
         conversation.last.role != 'user' ||
         conversation.last.content != userMessage) {
       conversation.add((role: 'user', content: userMessage));
     }
-
     final recentConversation = conversation.length > 20
         ? conversation.sublist(conversation.length - 20)
         : conversation;

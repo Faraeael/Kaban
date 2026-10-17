@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   Database? _db;
-  static const int _dbVersion = 6;
+  static const int _dbVersion = 8;
 
   /// Test seam: overrides the on-disk path for in-memory / ffi databases.
   String? overridePath;
@@ -43,7 +43,11 @@ class AppDatabase {
         currency TEXT NOT NULL DEFAULT 'PHP',
         color_value INTEGER NOT NULL,
         archived INTEGER NOT NULL DEFAULT 0,
-        logo_asset TEXT NOT NULL
+        logo_asset TEXT NOT NULL,
+        account_number TEXT,
+        account_name TEXT,
+        account_label TEXT,
+        qr_image_path TEXT
       )
     ''');
     batch.execute('''
@@ -220,6 +224,14 @@ class AppDatabase {
     }
     if (oldVersion < 6) {
       await db.execute("ALTER TABLE chat_messages ADD COLUMN image_path TEXT");
+    }
+    if (oldVersion < 7) {
+      await db.execute("ALTER TABLE wallets ADD COLUMN account_number TEXT");
+      await db.execute("ALTER TABLE wallets ADD COLUMN account_name TEXT");
+      await db.execute("ALTER TABLE wallets ADD COLUMN account_label TEXT");
+    }
+    if (oldVersion < 8) {
+      await db.execute("ALTER TABLE wallets ADD COLUMN qr_image_path TEXT");
     }
   }
 

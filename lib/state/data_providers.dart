@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../data/budget_repository.dart';
@@ -25,6 +27,7 @@ import '../services/ai/local_coach.dart';
 import '../services/ai/remote_coach.dart';
 import '../services/backup_service.dart';
 import '../services/balance_recalculator.dart';
+import '../services/coach_actions.dart';
 import '../services/notification_listener.dart';
 import '../services/notification_parser.dart';
 import '../services/payoff_calculator.dart';
@@ -32,7 +35,6 @@ import '../services/recurring_engine.dart';
 import '../services/spending_analyzer.dart';
 import '../services/subscription_detector.dart';
 import 'settings_provider.dart';
-
 const _uuid = Uuid();
 
 final databaseProvider = Provider<AppDatabase>((ref) => AppDatabase.instance);
@@ -66,11 +68,13 @@ final walletListProvider =
 });
 
 class WalletListNotifier extends StateNotifier<List<Wallet>> {
+  static const _channel = MethodChannel('finance_tracker/quick_log');
   final WalletRepository _repo;
   WalletListNotifier(this._repo) : super(const []);
 
   Future<void> load() async {
     state = await _repo.listAll();
+    await _syncQrDeckToAndroid();
   }
 
   Future<void> add(Wallet w) async {
@@ -86,6 +90,29 @@ class WalletListNotifier extends StateNotifier<List<Wallet>> {
   Future<void> delete(String id) async {
     await _repo.delete(id);
     await load();
+  }
+
+  Future<void> _syncQrDeckToAndroid() async {
+    try {
+      final qrWallets = state.where((w) => !w.archived && w.hasQrImage).toList();
+      await _channel.invokeMethod('syncQrDeck', {
+        'deck': qrWallets.map((w) {
+          final sub = [
+            if (w.accountName != null && w.accountName!.trim().isNotEmpty)
+              w.accountName!.trim(),
+            if (w.maskedAccountNumber != null) w.maskedAccountNumber!,
+          ].join(' · ');
+          return {
+            'id': w.id,
+            'name': w.name,
+            'details': sub,
+            'qrImagePath': w.qrImagePath ?? '',
+          };
+        }).toList(),
+      });
+    } on MissingPluginException {
+      // Non-fatal in tests or desktop
+    } catch (_) {}
   }
 }
 
@@ -149,6 +176,20 @@ class DebtListNotifier extends StateNotifier<List<Debt>> {
   Future<void> delete(String id) async {
     await _repo.delete(id);
     await load();
+  }
+
+  Future<Debt> recordPayment({
+    required Debt debt,
+    required double amount,
+    String? walletId,
+  }) async {
+    final updated = await _repo.recordPayment(
+      debt: debt,
+      amount: amount,
+      walletId: walletId,
+    );
+    await load();
+    return updated;
   }
 }
 
@@ -226,6 +267,24 @@ class SubscriptionListNotifier extends StateNotifier<List<Subscription>> {
   Future<void> update(Subscription s) async {
     await _repo.update(s);
     await load();
+  }
+
+  Future<Subscription> recordPayment({
+    required Subscription subscription,
+    required String walletId,
+    required DateTime nextDate,
+    DateTime? date,
+    String? transactionId,
+  }) async {
+    final updated = await _repo.recordPayment(
+      subscription: subscription,
+      walletId: walletId,
+      nextDate: nextDate,
+      date: date,
+      transactionId: transactionId,
+    );
+    await load();
+    return updated;
   }
 
   Future<void> delete(String id) async {
@@ -333,7 +392,6 @@ final walletBalancesProvider = Provider<Map<String, double>>((ref) {
   final calc = ref.watch(balanceRecalculatorProvider);
   final balances = <String, double>{};
   for (final w in wallets) {
-    if (w.archived) continue;
     final walletTxns = txns.where((t) => t.walletId == w.id).toList();
     balances[w.id] = calc.compute(w, walletTxns);
   }
@@ -342,7 +400,7 @@ final walletBalancesProvider = Provider<Map<String, double>>((ref) {
 
 final totalDebtProvider = Provider<double>((ref) {
   final debts = ref.watch(debtListProvider);
-  return debts.fold(0, (s, d) => s + d.balance);
+  return debts.fold(0, (s, d) => s + (d.paidOff ? 0 : d.balance));
 });
 
 final netWorthProvider = Provider<double>((ref) {
@@ -423,11 +481,12 @@ final coachServiceProvider = FutureProvider<CoachService>((ref) async {
     return LocalCoach();
   }
   final config = kAIProviders[settings.aiProvider]!;
-  final baseUrl = settings.aiBaseUrl.isNotEmpty
-      ? settings.aiBaseUrl
+  final slot = settings.slotFor(settings.aiProvider);
+  final baseUrl = slot.baseUrl.isNotEmpty
+      ? slot.baseUrl
       : (config.defaultBaseUrl ?? '');
-  final model = settings.aiModel.isNotEmpty
-      ? settings.aiModel
+  final model = slot.model.isNotEmpty
+      ? slot.model
       : (config.defaultModel ?? 'default');
 
   // Hydrate the AI's working memory from persisted chat so it remembers
@@ -436,13 +495,32 @@ final coachServiceProvider = FutureProvider<CoachService>((ref) async {
   final recent = history.length > _coachHistoryLimit
       ? history.sublist(history.length - _coachHistoryLimit)
       : history;
-  final conversation = recent.map((m) {
-    return (role: m.role.name, content: m.content);
-  }).toList();
-
+  final parser = CoachActionParser();
+  final conversation = <({String role, String content})>[];
+  for (var i = 0; i < recent.length; i++) {
+    final m = recent[i];
+    if (m.role == ChatRole.assistant && !m.content.trim().startsWith('{')) {
+      final prevUser = (i > 0 && recent[i - 1].role == ChatRole.user)
+          ? recent[i - 1].content
+          : null;
+      final recovered = parser.parse(
+        assistantReply: m.content,
+        userMessage: prevUser,
+      );
+      conversation.add((
+        role: 'assistant',
+        content: json.encode({
+          'reply': m.content,
+          'actions': recovered.map(actionToJsonMap).toList(),
+        }),
+      ));
+    } else {
+      conversation.add((role: m.role.name, content: m.content));
+    }
+  }
   return RemoteCoach(
     config: config,
-    apiKey: settings.aiApiKey,
+    apiKey: slot.apiKey,
     baseUrl: baseUrl,
     model: model,
     anonymizeBalances: settings.anonymizeBalances,

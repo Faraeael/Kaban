@@ -8,7 +8,13 @@ import '../../utils/formatters.dart';
 import 'add_transaction_sheet.dart';
 
 class TransactionsScreen extends ConsumerStatefulWidget {
-  const TransactionsScreen({super.key});
+  final String? initialWalletId;
+  final String? initialCategory;
+  const TransactionsScreen({
+    super.key,
+    this.initialWalletId,
+    this.initialCategory,
+  });
 
   @override
   ConsumerState<TransactionsScreen> createState() => _TransactionsScreenState();
@@ -16,16 +22,33 @@ class TransactionsScreen extends ConsumerStatefulWidget {
 
 class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   DateTime _filterMonth = DateTime.now();
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+  String? _selectedWalletId;
+  String? _selectedCategory;
 
   @override
   void initState() {
     super.initState();
+    _selectedWalletId = widget.initialWalletId;
+    _selectedCategory = widget.initialCategory;
+    _searchController.addListener(() {
+      final q = _searchController.text.trim();
+      if (q != _searchQuery) {
+        setState(() => _searchQuery = q);
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(transactionListProvider.notifier).load();
       ref.read(walletListProvider.notifier).load();
     });
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
   @override
   Widget build(BuildContext context) {
     final txns = ref.watch(transactionListProvider);
@@ -34,9 +57,29 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
     final start = DateTime(_filterMonth.year, _filterMonth.month, 1);
     final end = DateTime(_filterMonth.year, _filterMonth.month + 1, 1);
-    final filtered = txns
-        .where((t) => !t.date.isBefore(start) && t.date.isBefore(end))
-        .toList()
+    final queryLower = _searchQuery.toLowerCase();
+
+    final filtered = txns.where((t) {
+      // Month window
+      if (t.date.isBefore(start) || !t.date.isBefore(end)) return false;
+      // Wallet filter
+      if (_selectedWalletId != null && t.walletId != _selectedWalletId) {
+        return false;
+      }
+      // Category filter
+      if (_selectedCategory != null && t.category != _selectedCategory) {
+        return false;
+      }
+      // Search query (matches note, category, or amount)
+      if (queryLower.isNotEmpty) {
+        final noteMatch = t.note?.toLowerCase().contains(queryLower) ?? false;
+        final catMatch = t.category.toLowerCase().contains(queryLower);
+        final amtMatch = t.amount.toString().contains(queryLower) ||
+            t.amount.toStringAsFixed(0).contains(queryLower);
+        if (!noteMatch && !catMatch && !amtMatch) return false;
+      }
+      return true;
+    }).toList()
       ..sort((a, b) => b.date.compareTo(a.date));
 
     double monthInflow = 0;
@@ -55,7 +98,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       grouped.putIfAbsent(key, () => []).add(t);
     }
     final groupKeys = grouped.keys.toList();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Transactions'),
@@ -79,8 +121,191 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       ),
       body: Column(
         children: [
+          // ── Search Bar ──────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search note, merchant, or amount...',
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 18),
+                        tooltip: 'Clear search',
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                filled: true,
+                fillColor: Theme.of(context)
+                    .colorScheme
+                    .surfaceContainerHighest
+                    .withValues(alpha: 0.4),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+
+          // ── Filter Chips (Wallet & Category) ─────────────────────────
+          SizedBox(
+            height: 38,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                if (_selectedWalletId != null ||
+                    _selectedCategory != null ||
+                    _searchQuery.isNotEmpty) ...[
+                  ActionChip(
+                    avatar: const Icon(Icons.restart_alt_rounded, size: 16),
+                    label: const Text('Reset filters',
+                        style: TextStyle(fontSize: 11)),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {
+                        _searchQuery = '';
+                        _selectedWalletId = null;
+                        _selectedCategory = null;
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                // Wallet Filter Dropdown Chip
+                PopupMenuButton<String?>(
+                  tooltip: 'Filter by wallet',
+                  initialValue: _selectedWalletId,
+                  onSelected: (wId) => setState(() => _selectedWalletId = wId),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem<String?>(
+                      value: null,
+                      child: Text('All Wallets'),
+                    ),
+                    for (final w in wallets)
+                      PopupMenuItem<String?>(
+                        value: w.id,
+                        child: Row(
+                          children: [
+                            Text(w.name),
+                            if (w.id == _selectedWalletId) ...[
+                              const Spacer(),
+                              const Icon(Icons.check_rounded, size: 16),
+                            ],
+                          ],
+                        ),
+                      ),
+                  ],
+                  child: Chip(
+                    visualDensity: VisualDensity.compact,
+                    avatar: Icon(
+                      Icons.account_balance_wallet_outlined,
+                      size: 14,
+                      color: _selectedWalletId != null
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                    ),
+                    label: Text(
+                      _selectedWalletId != null
+                          ? (walletMap[_selectedWalletId]?.name ?? 'Wallet')
+                          : 'All Wallets',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: _selectedWalletId != null
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: _selectedWalletId != null
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
+                      ),
+                    ),
+                    deleteIcon: _selectedWalletId != null
+                        ? const Icon(Icons.close_rounded, size: 14)
+                        : null,
+                    onDeleted: _selectedWalletId != null
+                        ? () => setState(() => _selectedWalletId = null)
+                        : null,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Category Filter Dropdown Chip
+                PopupMenuButton<String?>(
+                  tooltip: 'Filter by category',
+                  initialValue: _selectedCategory,
+                  onSelected: (cat) => setState(() => _selectedCategory = cat),
+                  itemBuilder: (_) {
+                    final existingCategories = txns
+                        .where((t) => t.date.isAfter(start) && t.date.isBefore(end))
+                        .map((t) => t.category)
+                        .toSet()
+                        .toList()
+                      ..sort();
+                    return [
+                      const PopupMenuItem<String?>(
+                        value: null,
+                        child: Text('All Categories'),
+                      ),
+                      for (final c in existingCategories)
+                        PopupMenuItem<String?>(
+                          value: c,
+                          child: Row(
+                            children: [
+                              Text(c),
+                              if (c == _selectedCategory) ...[
+                                const Spacer(),
+                                const Icon(Icons.check_rounded, size: 16),
+                              ],
+                            ],
+                          ),
+                        ),
+                    ];
+                  },
+                  child: Chip(
+                    visualDensity: VisualDensity.compact,
+                    avatar: Icon(
+                      Icons.category_outlined,
+                      size: 14,
+                      color: _selectedCategory != null
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                    ),
+                    label: Text(
+                      _selectedCategory ?? 'All Categories',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: _selectedCategory != null
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: _selectedCategory != null
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
+                      ),
+                    ),
+                    deleteIcon: _selectedCategory != null
+                        ? const Icon(Icons.close_rounded, size: 14)
+                        : null,
+                    onDeleted: _selectedCategory != null
+                        ? () => setState(() => _selectedCategory = null)
+                        : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 2),
+
+          // ── Month Selector ──────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -387,22 +612,24 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      Navigator.pop(sheetCtx);
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        useSafeArea: true,
-                        builder: (_) => AddTransactionSheet(initial: t),
-                      );
-                    },
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    label: const Text('Edit'),
+                if (!isTransfer) ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheetCtx);
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          useSafeArea: true,
+                          builder: (_) => AddTransactionSheet(initial: t),
+                        );
+                      },
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: const Text('Edit'),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ],

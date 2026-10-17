@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="widget_description">One-tap Quick Log for your frequent expenses</string>
+    <string name="widget_qr_description">Swipeable Receive QR code for your Philippine wallets</string>
 </resources>

@@ -46,18 +46,29 @@ void main() async {
 
   // Initialize Android notification auto-capture listener and sync whitelist
   final notifService = container.read(notificationListenerServiceProvider);
+  void refreshAfterNotif() {
+    container.read(transactionListProvider.notifier).load();
+    container.read(walletListProvider.notifier).load();
+    container.read(notificationEventListProvider.notifier).load();
+  }
   notifService.initHandler(
     container.read(databaseProvider),
-    onTransactionAdded: () {
-      container.read(transactionListProvider.notifier).load();
-      container.read(walletListProvider.notifier).load();
-    },
+    onTransactionAdded: refreshAfterNotif,
+    isEnabled: () => container.read(settingsProvider).autoCaptureEnabled,
   );
-  if (settings.autoCaptureEnabled) {
-    try {
-      await notifService.syncWhitelist(settings.autoCapturePackages);
-    } catch (_) {}
-  }
+  try {
+    await notifService.syncWhitelist(
+      settings.autoCapturePackages,
+      enabled: settings.autoCaptureEnabled,
+    );
+    if (settings.autoCaptureEnabled) {
+      await notifService.flushPendingNotifications(
+        container.read(databaseProvider),
+        onTransactionAdded: refreshAfterNotif,
+        isEnabled: () => container.read(settingsProvider).autoCaptureEnabled,
+      );
+    }
+  } catch (_) {}
   try {
     await notifService.setSecure(settings.biometricLock);
   } catch (_) {}
@@ -113,6 +124,11 @@ class _LockGateState extends ConsumerState<_LockGate>
         _wentBackground = false;
       }
       _lockIfNeeded();
+      if (ref.read(settingsProvider).autoCaptureEnabled) {
+        ref
+            .read(notificationListenerServiceProvider)
+            .flushPendingNotifications(ref.read(databaseProvider));
+      }
     }
   }
 

@@ -4,9 +4,10 @@ import '../../../utils/formatters.dart';
 
 class DebtTile extends StatelessWidget {
   final Debt debt;
-  final int monthsToPayoff;
+  final int? monthsToPayoff;
   final double interestPaid;
   final VoidCallback? onTap;
+  final VoidCallback? onRecordPayment;
 
   const DebtTile({
     super.key,
@@ -14,17 +15,23 @@ class DebtTile extends StatelessWidget {
     required this.monthsToPayoff,
     required this.interestPaid,
     this.onTap,
+    this.onRecordPayment,
   });
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     final isPaidOff = debt.paidOff || debt.balance <= 0;
-    final payoffDate = DateTime.now().add(Duration(days: monthsToPayoff * 30));
+    final months = monthsToPayoff;
+    final isUnpayable = !isPaidOff && months == null;
+    final payoffDate = months != null
+        ? DateTime.now().add(Duration(days: months * 30))
+        : null;
     final semanticLabel = isPaidOff
         ? 'Debt: ${debt.name}, fully settled and paid off.'
-        : 'Debt: ${debt.name}, balance ${peso(debt.balance)}, APR ${debt.apr.toStringAsFixed(1)}%, minimum payment ${peso(debt.minPayment)}, estimated payoff in $monthsToPayoff months, total interest ${peso(interestPaid)}';
-
+        : (isUnpayable
+            ? 'Debt: ${debt.name}, balance ${peso(debt.balance)}, APR ${debt.apr.toStringAsFixed(1)}%, minimum payment ${peso(debt.minPayment)}, exceeds 50 years or payment is below monthly interest.'
+            : 'Debt: ${debt.name}, balance ${peso(debt.balance)}, APR ${debt.apr.toStringAsFixed(1)}%, minimum payment ${peso(debt.minPayment)}, estimated payoff in $months months, total interest ${peso(interestPaid)}');
     return Semantics(
       label: semanticLabel,
       child: InkWell(
@@ -172,17 +179,22 @@ class DebtTile extends StatelessWidget {
                     child: Text(
                       isPaidOff
                           ? 'Fully settled · Debt-free!'
-                          : '${peso(debt.minPayment)}/mo min · $monthsToPayoff mo to freedom',
+                          : (isUnpayable
+                              ? '${peso(debt.minPayment)}/mo min · Increase payment to pay off'
+                              : '${peso(debt.minPayment)}/mo min · $months mo to freedom'),
                       style: t.textTheme.bodySmall?.copyWith(
                         color: isPaidOff
                             ? t.colorScheme.primary
-                            : t.colorScheme.onSurfaceVariant,
-                        fontWeight:
-                            isPaidOff ? FontWeight.w700 : FontWeight.w500,
+                            : (isUnpayable
+                                ? t.colorScheme.error
+                                : t.colorScheme.onSurfaceVariant),
+                        fontWeight: (isPaidOff || isUnpayable)
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                       ),
                     ),
                   ),
-                  if (!isPaidOff)
+                  if (!isPaidOff && payoffDate != null)
                     Text(
                       '${payoffDate.year}-${payoffDate.month.toString().padLeft(2, '0')}',
                       style: t.textTheme.bodySmall?.copyWith(
@@ -193,13 +205,33 @@ class DebtTile extends StatelessWidget {
                 ],
               ),
               if (!isPaidOff) ...[
-                const SizedBox(height: 4),
-                Text(
-                  'Total interest: ${peso(interestPaid)}',
-                  style: t.textTheme.labelSmall?.copyWith(
-                    color:
-                        t.colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
-                  ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    if (!isUnpayable)
+                      Expanded(
+                        child: Text(
+                          'Total interest: ${peso(interestPaid)}',
+                          style: t.textTheme.labelSmall?.copyWith(
+                            color: t.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.8),
+                          ),
+                        ),
+                      )
+                    else
+                      const Spacer(),
+                    if (onRecordPayment != null)
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                        ),
+                        onPressed: onRecordPayment,
+                        icon: const Icon(Icons.payments_outlined, size: 16),
+                        label: const Text('Record payment',
+                            style: TextStyle(fontSize: 12)),
+                      ),
+                  ],
                 ),
               ],
             ],

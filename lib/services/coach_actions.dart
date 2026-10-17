@@ -162,6 +162,170 @@ class UpdateRecurringAction extends CoachAction {
   });
 }
 
+class CreateBudgetAction extends CoachAction {
+  final String category;
+  final double monthlyLimit;
+  const CreateBudgetAction({
+    required this.category,
+    required this.monthlyLimit,
+  });
+}
+
+class UpdateBudgetAction extends CoachAction {
+  final String category;
+  final String? newCategory;
+  final double? newMonthlyLimit;
+  const UpdateBudgetAction({
+    required this.category,
+    this.newCategory,
+    this.newMonthlyLimit,
+  });
+}
+
+class DeleteBudgetAction extends CoachAction {
+  final String category;
+  const DeleteBudgetAction({required this.category});
+}
+
+class TransferAction extends CoachAction {
+  final double amount;
+  final String fromWalletName;
+  final String toWalletName;
+  final String? note;
+  const TransferAction({
+    required this.amount,
+    required this.fromWalletName,
+    required this.toWalletName,
+    this.note,
+  });
+}
+
+Map<String, dynamic> actionToJsonMap(CoachAction action) {
+  return switch (action) {
+    LogTransactionAction a => {
+        'type': a.isIncome ? 'log_income' : 'log_expense',
+        'amount': a.amount,
+        'category': a.category,
+        if (a.note != null) 'note': a.note,
+        if (a.walletName != null) 'wallet_name': a.walletName,
+      },
+    TransferAction a => {
+        'type': 'transfer',
+        'amount': a.amount,
+        'from_wallet_name': a.fromWalletName,
+        'to_wallet_name': a.toWalletName,
+        if (a.note != null) 'note': a.note,
+      },
+    UpdateDebtBalanceAction a => {
+        'type': 'pay_debt',
+        'name': a.debtName,
+        'amount': a.amount,
+        if (a.walletName != null) 'wallet_name': a.walletName,
+      },
+    AddToGoalAction a => {
+        'type': 'add_to_goal',
+        'name': a.goalName,
+        'amount': a.amount,
+      },
+    CreateDebtAction a => {
+        'type': 'create_debt',
+        'name': a.debt.name,
+        'balance': a.debt.balance,
+        'apr': a.debt.apr,
+        'min_payment': a.debt.minPayment,
+        'schedule': a.debt.schedule.name,
+        if (a.debt.dueDay != null) 'due_day': a.debt.dueDay,
+        if (a.debt.remainingPayments != null)
+          'remaining_payments': a.debt.remainingPayments,
+        if (a.debt.billingDay != null) 'billing_day': a.debt.billingDay,
+        if (a.debt.graceDays != null) 'grace_days': a.debt.graceDays,
+      },
+    CreateGoalAction a => {
+        'type': 'create_goal',
+        'name': a.goal.name,
+        'target': a.goal.target,
+      },
+    CreateRecurringAction a => {
+        'type': 'create_recurring',
+        'name': a.recurring.name,
+        'amount': a.recurring.amount,
+        'frequency': a.recurring.frequencyLabel.toLowerCase(),
+        'kind': a.recurring.type == TransactionType.income
+            ? 'income'
+            : 'expense',
+        'category': a.recurring.category,
+      },
+    CreateWalletAction a => {
+        'type': 'create_wallet',
+        'name': a.name,
+        'starting_balance': a.startingBalance,
+      },
+    UpdateWalletAction a => {
+        'type': 'update_wallet',
+        'name': a.name,
+        if (a.newName != null) 'new_name': a.newName,
+        if (a.newStartingBalance != null)
+          'new_starting_balance': a.newStartingBalance,
+        if (a.unarchive) 'unarchive': true,
+      },
+    ArchiveWalletAction a => {
+        'type': 'archive_wallet',
+        'name': a.name,
+      },
+    AdjustWalletBalanceAction a => {
+        'type': 'adjust_wallet_balance',
+        'name': a.walletName,
+        'target_balance': a.targetBalance,
+      },
+    UpdateDebtAction a => {
+        'type': 'update_debt',
+        'name': a.name,
+        if (a.newName != null) 'new_name': a.newName,
+        if (a.newBalance != null) 'new_balance': a.newBalance,
+        if (a.newApr != null) 'new_apr': a.newApr,
+        if (a.newMinPayment != null) 'new_min_payment': a.newMinPayment,
+      },
+    DeleteDebtAction a => {
+        'type': 'delete_debt',
+        'name': a.name,
+      },
+    UpdateGoalAction a => {
+        'type': 'update_goal',
+        'name': a.name,
+        if (a.newName != null) 'new_name': a.newName,
+        if (a.newTarget != null) 'new_target': a.newTarget,
+        if (a.newSaved != null) 'new_saved': a.newSaved,
+      },
+    DeleteGoalAction a => {
+        'type': 'delete_goal',
+        'name': a.name,
+      },
+    UpdateRecurringAction a => {
+        'type': 'update_recurring',
+        'name': a.name,
+        if (a.newAmount != null) 'new_amount': a.newAmount,
+        if (a.newFrequency != null) 'new_frequency': a.newFrequency,
+        if (a.newEnabled != null) 'new_enabled': a.newEnabled,
+        if (a.delete) 'delete': true,
+      },
+    CreateBudgetAction a => {
+        'type': 'create_budget',
+        'category': a.category,
+        'monthly_limit': a.monthlyLimit,
+      },
+    UpdateBudgetAction a => {
+        'type': 'update_budget',
+        'category': a.category,
+        if (a.newCategory != null) 'new_category': a.newCategory,
+        if (a.newMonthlyLimit != null) 'new_monthly_limit': a.newMonthlyLimit,
+      },
+    DeleteBudgetAction a => {
+        'type': 'delete_budget',
+        'category': a.category,
+      },
+  };
+}
+
 /// Amount token: ₱1,000.50 / 100 pesos / 2k / ₱50
 const String _amt =
     r'([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?(?:[kKmM](?![a-zA-Z]))?)';
@@ -169,12 +333,36 @@ const String _amt =
 /// Regex-based parser that runs on the coach's reply text plus the user's
 /// message for context. Only emits actions from unambiguous patterns.
 class CoachActionParser {
-  // "I spent 200 on food" / "paid ₱150 for coffee" / "paid 13 to jeep" / "Paid PHP13 to Jeep put it under Cash"
+  // "I spent 200 on food" / "paid ₱150 for coffee" / "Paid ₱15 jeep fare" / "Spent 150 lunch"
   static final _expenseRegex = RegExp(
-    r'(?:spent|paid|bought)(?:\s+(?:again|another|also))?\s+(?:(?:₱|PHP|PhP|php)\s*)?'
+    r'(?:spent|paid|bought|log|logged|expense)(?:\s+(?:again|another|also))?\s+(?:(?:₱|PHP|PhP|php)\s*)?'
     '$_amt'
     r'(?:\s*(?:₱|PHP|PhP|php|pesos?))?'
-    r'\s+(?:on|for|at|with|to|in)\s+(?:a\s+|an\s+)?([A-Za-z][A-Za-z ]{1,30}?)(?=[\s]*[,.\n]|$|\s+(?:from|at|via|using|and|but|put\s+it\s+under|under)\s)',
+    r'\s+(?:(?:on|for|at|with|to|in)\s+)?(?:my\s+|the\s+|a\s+|an\s+)?([A-Za-z][A-Za-z ]{1,30}?)(?=[\s]*[,.\n]|$|\s+(?:from|at|via|using|and|but|put\s+it\s+under|under)\s)',
+    caseSensitive: false,
+  );
+
+  // "set a 5000 budget for food" / "set a ₱5,000 budget for food" / "create budget of 8000 for groceries"
+  static final _budgetCreateRegex = RegExp(
+    r'(?:set|create|add|make)(?:\s+(?:a|an|new))?\s+(?:(?:(?:₱|PHP|PhP|php)\s*)?'
+    '$_amt'
+    r'\s+budget\b|budget\s+(?:of\s+)?(?:(?:₱|PHP|PhP|php)\s*)?'
+    '$_amt'
+    r')\s+(?:for|on|in)\s+([A-Za-z][A-Za-z ]{1,25}?)(?=[\s]*[,.\n]|$)',
+    caseSensitive: false,
+  );
+
+  static final _budgetCreateAltRegex = RegExp(
+    r'(?:budget|cap)\s+(?:for|on|in)?\s*([A-Za-z][A-Za-z ]{1,25}?)\s+(?:at|to|of)?\s*(?:(?:₱|PHP|PhP|php)\s*)?'
+    '$_amt',
+    caseSensitive: false,
+  );
+
+  // "transfer 1000 from BDO to GCash" / "transferred ₱500 from Maya to BPI"
+  static final _transferRegex = RegExp(
+    r'(?:transfer(?:red)?|move(?:d)?)\s+(?:(?:₱|PHP|PhP|php)\s*)?'
+    '$_amt'
+    r'(?:\s*(?:₱|PHP|PhP|php|pesos?))?\s+from\s+(?:my\s+|the\s+)?([A-Za-z][A-Za-z0-9 ]{1,25}?)\s+to\s+(?:my\s+|the\s+)?([A-Za-z][A-Za-z0-9 ]{1,25}?)(?=[\s]*[,.\n]|$)',
     caseSensitive: false,
   );
 
@@ -336,6 +524,20 @@ class CoachActionParser {
       )));
     }
 
+    for (final match in _transferRegex.allMatches(combined)) {
+      final amount = _parseAmount(match.group(1) ?? '');
+      final fromHint = (match.group(2) ?? '').trim();
+      final toHint = (match.group(3) ?? '').trim();
+      if (amount <= 0 || fromHint.isEmpty || toHint.isEmpty) continue;
+      final fromWallet = _matchPresetOrCash(fromHint) ?? fromHint;
+      final toWallet = _matchPresetOrCash(toHint) ?? toHint;
+      if (fromWallet.toLowerCase() == toWallet.toLowerCase()) continue;
+      actions.add(TransferAction(
+        amount: amount,
+        fromWalletName: fromWallet,
+        toWalletName: toWallet,
+      ));
+    }
     // Wallet-creation intents. Run after recurring so "I spend 100 every day
     // on commute" doesn't get misread as "add a wallet". Wallet verbs are
     // specific enough that overlap with expense/income is unlikely.
@@ -383,6 +585,33 @@ class CoachActionParser {
         note: hint.isEmpty ? null : hint,
         walletName: wallet,
       ));
+    }
+
+    // Budget creation intents: "set a ₱5,000 budget for food"
+    for (final match in _budgetCreateRegex.allMatches(combined)) {
+      final rawAmt = (match.group(1) ?? match.group(2) ?? '');
+      final amount = _parseAmount(rawAmt);
+      final rawCat = (match.group(3) ?? '').trim();
+      if (amount > 0 && rawCat.isNotEmpty) {
+        final category = _matchCategory(rawCat, _expenseCategories);
+        actions.add(CreateBudgetAction(
+          category: category,
+          monthlyLimit: amount,
+        ));
+      }
+    }
+    for (final match in _budgetCreateAltRegex.allMatches(combined)) {
+      final rawCat = (match.group(1) ?? '').trim();
+      final amount = _parseAmount(match.group(2) ?? '');
+      if (amount > 0 &&
+          rawCat.isNotEmpty &&
+          !actions.any((a) => a is CreateBudgetAction)) {
+        final category = _matchCategory(rawCat, _expenseCategories);
+        actions.add(CreateBudgetAction(
+          category: category,
+          monthlyLimit: amount,
+        ));
+      }
     }
 
     for (final match in _expenseAltRegex.allMatches(combined)) {
@@ -1146,6 +1375,70 @@ CoachAction? parseJsonAction(Map<String, dynamic> m) {
           delete: (m['delete'] as bool?) ?? false,
         );
 
+      case 'transfer':
+      case 'transfer_between_wallets':
+        final amount = _toDouble(m['amount']);
+        final from = (m['from_wallet'] ??
+                m['from_wallet_name'] ??
+                m['from'] ??
+                m['source_wallet'])
+            ?.toString()
+            .trim();
+        final to = (m['to_wallet'] ??
+                m['to_wallet_name'] ??
+                m['to'] ??
+                m['destination_wallet'])
+            ?.toString()
+            .trim();
+        if (amount == null ||
+            amount <= 0 ||
+            from == null ||
+            from.isEmpty ||
+            to == null ||
+            to.isEmpty) {
+          return null;
+        }
+        return TransferAction(
+          amount: amount,
+          fromWalletName: from,
+          toWalletName: to,
+          note: (m['note'])?.toString().trim(),
+        );
+      case 'create_budget':
+      case 'add_budget':
+      case 'set_budget':
+        final rawCat =
+            (m['category'] ?? m['category_name'])?.toString().trim();
+        final limit =
+            _toDouble(m['monthly_limit'] ?? m['limit'] ?? m['amount']);
+        if (rawCat == null || rawCat.isEmpty || limit == null || limit <= 0) {
+          return null;
+        }
+        final category =
+            CoachActionParser._matchCategory(rawCat, CoachActionParser._expenseCategories);
+        return CreateBudgetAction(category: category, monthlyLimit: limit);
+
+      case 'update_budget':
+        final rawCat =
+            (m['category'] ?? m['category_name'])?.toString().trim();
+        if (rawCat == null || rawCat.isEmpty) return null;
+        final newCatRaw = (m['new_category'])?.toString().trim();
+        final newCategory = newCatRaw != null && newCatRaw.isNotEmpty
+            ? CoachActionParser._matchCategory(
+                newCatRaw, CoachActionParser._expenseCategories)
+            : null;
+        return UpdateBudgetAction(
+          category: rawCat,
+          newCategory: newCategory,
+          newMonthlyLimit: _toDouble(
+              m['new_monthly_limit'] ?? m['monthly_limit'] ?? m['limit']),
+        );
+
+      case 'delete_budget':
+        final rawCat =
+            (m['category'] ?? m['category_name'])?.toString().trim();
+        if (rawCat == null || rawCat.isEmpty) return null;
+        return DeleteBudgetAction(category: rawCat);
       default:
         return null;
     }
@@ -1261,6 +1554,14 @@ List<double> extractAmounts(String text) {
       switch (action) {
         case LogTransactionAction a:
           actionAmount = a.amount;
+        case TransferAction a:
+          actionAmount = a.amount;
+        case CreateBudgetAction a:
+          actionAmount = a.monthlyLimit;
+        case UpdateBudgetAction a:
+          if (a.newMonthlyLimit != null && a.newMonthlyLimit! > 0) {
+            actionAmount = a.newMonthlyLimit;
+          }
         case AdjustWalletBalanceAction a:
           actionAmount = a.targetBalance;
         case UpdateDebtBalanceAction a:
@@ -1374,7 +1675,13 @@ List<double> extractAmounts(String text) {
                   userLower.contains('target') ||
                   userLower.contains('save') ||
                   userLower.contains('saving') ||
-                  userLower.contains('fund'));
+                  userLower.contains('fund')) ||
+          (action is CreateBudgetAction ||
+                  action is UpdateBudgetAction ||
+                  action is DeleteBudgetAction) &&
+              (userLower.contains('budget') ||
+                  userLower.contains('cap') ||
+                  userLower.contains('limit'));
 
       final hasNameMatch = isConfirmOrFollowUp ||
           isKnownEntity ||

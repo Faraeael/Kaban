@@ -27,6 +27,7 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(debtListProvider.notifier).load();
+      ref.read(walletListProvider.notifier).load();
     });
   }
 
@@ -259,8 +260,9 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
                     )
                   else
                     Semantics(
-                      label:
-                          'Payoff estimate: Debt-free in ${result.totalMonths} months. Total interest paid ${peso(result.totalInterestPaid)}.',
+                      label: result.totalMonths == null
+                          ? 'Payoff estimate: Exceeds 50 years or payment is below monthly interest; increase monthly payment.'
+                          : 'Payoff estimate: Debt-free in ${result.totalMonths} months. Total interest paid ${peso(result.totalInterestPaid)}.',
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -289,11 +291,18 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
                                         FadeTransition(
                                             opacity: animation, child: child),
                                     child: Text(
-                                      '${result.totalMonths} months',
-                                      key: ValueKey<int>(result.totalMonths),
-                                      style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w800),
+                                      result.totalMonths == null
+                                          ? '50+ yrs (increase payment)'
+                                          : '${result.totalMonths} months',
+                                      key: ValueKey<int?>(result.totalMonths),
+                                      style: TextStyle(
+                                        fontSize:
+                                            result.totalMonths == null ? 13 : 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: result.totalMonths == null
+                                            ? t.colorScheme.error
+                                            : null,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -390,6 +399,8 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
                       monthsToPayoff: e.monthsToPayoff,
                       interestPaid: e.interestPaid,
                       onTap: () => _showEditDebt(context, e.debt),
+                      onRecordPayment: () =>
+                          _showRecordPaymentDialog(context, e.debt),
                     );
                   },
                 );
@@ -480,6 +491,89 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
             Navigator.pop(context);
           }
         },
+      ),
+    );
+  }
+
+  Future<void> _showRecordPaymentDialog(BuildContext context, Debt debt) async {
+    final wallets =
+        ref.read(walletListProvider).where((w) => !w.archived).toList();
+    final defaultAmt = debt.minPayment > 0 ? debt.minPayment : debt.balance;
+    final amountCtrl = TextEditingController(
+      text: defaultAmt % 1 == 0
+          ? defaultAmt.toStringAsFixed(0)
+          : defaultAmt.toStringAsFixed(2),
+    );
+    String? selectedWalletId =
+        wallets.any((w) => w.id == debt.linkedWalletId)
+            ? debt.linkedWalletId
+            : wallets.firstOrNull?.id;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text('Pay "${debt.name}"'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: amountCtrl,
+                autofocus: true,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Payment amount',
+                  prefixText: '₱ ',
+                ),
+              ),
+              if (wallets.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String?>(
+                  initialValue: selectedWalletId,
+                  decoration: const InputDecoration(
+                    labelText: 'Pay from wallet',
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('None (update debt balance only)'),
+                    ),
+                    for (final w in wallets)
+                      DropdownMenuItem<String?>(
+                        value: w.id,
+                        child: Text(w.name),
+                      ),
+                  ],
+                  onChanged: (v) => setDialogState(() => selectedWalletId = v),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final amt =
+                    double.tryParse(amountCtrl.text.replaceAll(',', ''));
+                if (amt == null || amt <= 0) return;
+                await ref.read(debtListProvider.notifier).recordPayment(
+                      debt: debt,
+                      amount: amt,
+                      walletId: selectedWalletId,
+                    );
+                if (selectedWalletId != null) {
+                  await ref.read(transactionListProvider.notifier).load();
+                }
+                if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+              },
+              child: const Text('Record Payment'),
+            ),
+          ],
+        ),
       ),
     );
   }

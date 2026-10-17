@@ -8,6 +8,7 @@ import '../../state/settings_provider.dart';
 import '../settings/widgets/model_picker.dart';
 import 'widgets/test_api_button.dart';
 
+import '../../utils/formatters.dart';
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -388,11 +389,7 @@ class _StatBlock extends StatelessWidget {
   }
 }
 
-String pesoDisplay(double v) {
-  final neg = v < 0;
-  final n = v.abs();
-  return '${neg ? '-' : ''}₱${n.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},')}';
-}
+String pesoDisplay(double v) => peso(v);
 
 String pesoCompact(double v) {
   final n = v.abs();
@@ -420,7 +417,7 @@ class _CoachIntroPageState extends ConsumerState<_CoachIntroPage> {
   void initState() {
     super.initState();
     final s = ref.read(settingsProvider);
-    _apiKey = TextEditingController(text: s.aiApiKey);
+    _apiKey = TextEditingController(text: s.slotFor(s.aiProvider).apiKey);
   }
 
   @override
@@ -474,11 +471,12 @@ class _CoachIntroPageState extends ConsumerState<_CoachIntroPage> {
           _ProviderPickerRow(
             provider: provider,
             onPick: (p) {
-              final cfg = kAIProviders[p]!;
+              final newSlot = settings.slotFor(p);
+              setState(() {
+                _apiKey.text = newSlot.apiKey;
+              });
               notifier.update(settings.copyWith(
                 aiProvider: p,
-                aiBaseUrl: cfg.defaultBaseUrl ?? settings.aiBaseUrl,
-                aiModel: cfg.defaultModel ?? settings.aiModel,
                 allowRemoteAI: true,
               ));
             },
@@ -493,7 +491,6 @@ class _CoachIntroPageState extends ConsumerState<_CoachIntroPage> {
             const SizedBox(height: 6),
             TextField(
               controller: _apiKey,
-              obscureText: true,
               decoration: InputDecoration(
                 hintText: 'Paste your key here',
                 prefixIcon: const Icon(Icons.key_rounded, size: 18),
@@ -503,8 +500,12 @@ class _CoachIntroPageState extends ConsumerState<_CoachIntroPage> {
                         icon: const Icon(Icons.check_rounded, size: 18),
                         tooltip: 'Save API key',
                         onPressed: () {
-                          notifier.update(
-                              settings.copyWith(aiApiKey: _apiKey.text));
+                          notifier.update(settings.withSlot(
+                            provider,
+                            settings
+                                .slotFor(provider)
+                                .copyWith(apiKey: _apiKey.text),
+                          ));
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('API key saved')),
                           );
@@ -512,7 +513,10 @@ class _CoachIntroPageState extends ConsumerState<_CoachIntroPage> {
                       ),
               ),
               onChanged: (v) {
-                notifier.update(settings.copyWith(aiApiKey: v));
+                notifier.update(settings.withSlot(
+                  provider,
+                  settings.slotFor(provider).copyWith(apiKey: v),
+                ));
                 setState(() {});
               },
             ),
@@ -548,23 +552,28 @@ class _CoachIntroPageState extends ConsumerState<_CoachIntroPage> {
           if (!isLocal) ...[
             const SizedBox(height: 14),
             _OnboardingModelRow(
-              currentModelId: settings.aiModel.isNotEmpty
-                  ? settings.aiModel
+              currentModelId: settings.slotFor(provider).model.isNotEmpty
+                  ? settings.slotFor(provider).model
                   : (config.defaultModel ?? ''),
               provider: provider,
-              apiKey: _apiKey.text,
-              baseUrl: settings.aiBaseUrl,
-              onPick: (id) => notifier.update(settings.copyWith(aiModel: id)),
+              apiKey: settings.slotFor(provider).apiKey,
+              baseUrl: settings.slotFor(provider).baseUrl.isNotEmpty
+                  ? settings.slotFor(provider).baseUrl
+                  : (config.defaultBaseUrl ?? ''),
+              onPick: (id) => notifier.update(settings.withSlot(
+                provider,
+                settings.slotFor(provider).copyWith(model: id),
+              )),
             ),
             const SizedBox(height: 12),
             TestApiButton(
               provider: provider,
-              baseUrl: settings.aiBaseUrl.isNotEmpty
-                  ? settings.aiBaseUrl
+              baseUrl: settings.slotFor(provider).baseUrl.isNotEmpty
+                  ? settings.slotFor(provider).baseUrl
                   : (config.defaultBaseUrl ?? ''),
-              apiKey: _apiKey.text,
-              model: settings.aiModel.isNotEmpty
-                  ? settings.aiModel
+              apiKey: settings.slotFor(provider).apiKey,
+              model: settings.slotFor(provider).model.isNotEmpty
+                  ? settings.slotFor(provider).model
                   : (config.defaultModel ?? ''),
             ),
           ],

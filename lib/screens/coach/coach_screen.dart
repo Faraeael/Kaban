@@ -8,13 +8,16 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
+import '../../models/budget.dart';
 import '../../models/chat_message.dart';
 import '../../models/debt.dart';
 import '../../models/goal.dart';
 import '../../models/transaction.dart';
+import '../../models/subscription.dart';
 import '../../models/wallet.dart';
 import '../../services/ai/ai_provider_config.dart';
 import '../../services/ai/coach_service.dart';
+import '../../services/ai/remote_coach.dart';
 import '../../services/coach_actions.dart';
 import '../../state/data_providers.dart';
 import '../../state/settings_provider.dart';
@@ -195,13 +198,26 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     final debts = ref.read(debtListProvider);
     final month = ref.read(monthSummaryProvider);
     final settings = ref.read(settingsProvider);
+    final budgetsList = ref.read(budgetListProvider);
+    final subsList = ref.read(subscriptionListProvider);
+    final budgetMap = {for (final b in budgetsList) b.category: b.monthlyLimit};
 
     return FinanceSnapshot(
       walletBalances: walletNameBalances,
-      totalDebt: debts.fold(0, (s, d) => s + d.balance),
+      totalDebt: debts.fold(0, (s, d) => s + (d.paidOff ? 0 : d.balance)),
       monthIncome: month.income,
       monthExpense: month.expense,
       monthExpenseByCategory: month.byCategory,
+      budgets: budgetMap,
+      subscriptions: subsList
+          .map((s) => SubscriptionSnapshot(
+                name: s.name,
+                amount: s.amount,
+                cadence: s.cadence.label,
+                category: s.category,
+                nextBillingDate: s.nextBillingDate,
+              ))
+          .toList(),
       debts: debts
           .map((d) => DebtSnapshot(
                 id: d.id,
@@ -266,6 +282,89 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
             walletId: wallet.id,
           );
           await ref.read(transactionListProvider.notifier).add(txn);
+        case TransferAction a:
+          final wallets = ref.read(walletListProvider);
+          final vis = wallets.where((w) => !w.archived).toList();
+          Wallet? findMatch(String queryName) {
+            final q = queryName.trim().toLowerCase();
+            return vis.where((w) {
+              final n = w.name.toLowerCase();
+              return n == q || n.contains(q) || q.contains(n);
+            }).firstOrNull;
+          }
+          final fromW = findMatch(a.fromWalletName);
+          final toW = findMatch(a.toWalletName);
+          if (fromW == null || toW == null || fromW.id == toW.id) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Could not match both wallets ("${a.fromWalletName}" → "${a.toWalletName}").',
+                ),
+              ),
+            );
+            return;
+          }
+          final pairId = _uuid.v4();
+          final now = DateTime.now();
+          final outTxn = Transaction(
+            id: _uuid.v4(),
+            amount: a.amount,
+            type: TransactionType.transfer,
+            category: 'Transfer Out',
+            note: a.note ?? 'Transfer to ${toW.name}',
+            date: now,
+            walletId: fromW.id,
+            transferPairId: pairId,
+          );
+          final inTxn = Transaction(
+            id: _uuid.v4(),
+            amount: a.amount,
+            type: TransactionType.transfer,
+            category: 'Transfer In',
+            note: a.note ?? 'Transfer from ${fromW.name}',
+            date: now,
+            walletId: toW.id,
+            transferPairId: pairId,
+          );
+          await ref
+              .read(transactionListProvider.notifier)
+              .addMany([outTxn, inTxn]);
+        case CreateBudgetAction a:
+          final budgets = ref.read(budgetListProvider);
+          final existing = budgets.where((b) =>
+              b.category.toLowerCase() == a.category.toLowerCase()).firstOrNull;
+          final b = Budget(
+            id: existing?.id ?? _uuid.v4(),
+            category: a.category,
+            monthlyLimit: a.monthlyLimit,
+          );
+          await ref.read(budgetListProvider.notifier).upsert(b);
+        case UpdateBudgetAction a:
+          final budgets = ref.read(budgetListProvider);
+          final existing = budgets.where((b) =>
+              b.category.toLowerCase() == a.category.toLowerCase()).firstOrNull;
+          if (existing == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('No budget set for "${a.category}".')),
+            );
+            return;
+          }
+          final b = existing.copyWith(
+            category: a.newCategory ?? existing.category,
+            monthlyLimit: a.newMonthlyLimit ?? existing.monthlyLimit,
+          );
+          await ref.read(budgetListProvider.notifier).upsert(b);
+        case DeleteBudgetAction a:
+          final budgets = ref.read(budgetListProvider);
+          final existing = budgets.where((b) =>
+              b.category.toLowerCase() == a.category.toLowerCase()).firstOrNull;
+          if (existing == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('No budget set for "${a.category}".')),
+            );
+            return;
+          }
+          await ref.read(budgetListProvider.notifier).delete(existing.id);
         case UpdateDebtBalanceAction a:
           final debts = ref.read(debtListProvider);
           final query = a.debtName.trim().toLowerCase();
@@ -297,24 +396,6 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
             return;
           }
           final debt = target;
-          var next = debt.copyWith(
-            balance: (debt.balance - a.amount).clamp(0, double.infinity),
-          );
-          if (debt.schedule == DebtSchedule.fixed) {
-            final current = debt.remainingPayments ?? 1;
-            final remaining = (current - 1).clamp(0, 9999);
-            if (remaining == 0) {
-              next = next.copyWith(
-                paidOff: true,
-                schedule: DebtSchedule.none,
-                clearDueDay: true,
-                clearRemainingPayments: true,
-              );
-            } else {
-              next = next.copyWith(remainingPayments: remaining);
-            }
-          }
-          await ref.read(debtListProvider.notifier).update(next);
           final wallets = ref.read(walletListProvider);
           final vis = wallets.where((w) => !w.archived).toList();
           final payingWallet = selectedWalletId != null
@@ -329,17 +410,13 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
                           }).firstOrNull ??
                           vis.firstOrNull)
                       : vis.firstOrNull));
+          await ref.read(debtListProvider.notifier).recordPayment(
+                debt: debt,
+                amount: a.amount,
+                walletId: payingWallet?.id,
+              );
           if (payingWallet != null) {
-            final txn = Transaction(
-              id: _uuid.v4(),
-              amount: a.amount,
-              type: TransactionType.expense,
-              category: 'Debt Payment',
-              note: 'Payment to ${debt.name}',
-              date: DateTime.now(),
-              walletId: payingWallet.id,
-            );
-            await ref.read(transactionListProvider.notifier).add(txn);
+            await ref.read(transactionListProvider.notifier).load();
           }
         case UpdateDebtAction a:
           final debts = ref.read(debtListProvider);
@@ -810,6 +887,15 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
         ? (hasImage ? '📷 [Receipt attached]\n$trimmed' : trimmed)
         : '📷 [Scanned receipt / screenshot]';
 
+    final snapshot = _buildSnapshot();
+    final settings = ref.read(settingsProvider);
+    CoachService? preloadedService;
+    try {
+      // Resolve coachServiceProvider BEFORE adding userMsg to SQLite so initial
+      // DB history hydration only loads completed prior turns.
+      preloadedService = await ref.read(coachServiceProvider.future);
+    } catch (_) {}
+
     final userMsg = ChatMessage(
       id: _uuid.v4(),
       role: ChatRole.user,
@@ -820,11 +906,9 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     await ref.read(chatListProvider.notifier).add(userMsg);
     _scrollToBottom(animate: true);
 
-    final snapshot = _buildSnapshot();
-    final settings = ref.read(settingsProvider);
-
     try {
-      final service = await ref.read(coachServiceProvider.future);
+      final CoachService service =
+          preloadedService ?? await ref.read(coachServiceProvider.future);
       final coachReply = await service.ask(
         trimmed,
         snapshot,
@@ -838,8 +922,10 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
         actions = userActions.isNotEmpty
             ? userActions
             : _parser.parse(assistantReply: coachReply.text);
+        if (actions.isNotEmpty && service is RemoteCoach) {
+          service.syncLastAssistantActions(coachReply.text, actions);
+        }
       }
-
       // If actions are still empty, check if user was requesting cards or confirming
       if (actions.isEmpty) {
         final isRequestingCards = RegExp(

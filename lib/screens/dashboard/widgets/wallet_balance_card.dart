@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../../models/wallet.dart';
+import '../../wallets/widgets/wallet_tile.dart';
 import '../../../utils/formatters.dart';
 
 class WalletBalanceCard extends StatelessWidget {
@@ -40,26 +40,7 @@ class WalletBalanceCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: wallet.color,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: SvgPicture.asset(
-                      wallet.logoAsset,
-                      colorFilter:
-                          const ColorFilter.mode(Colors.white, BlendMode.srcIn),
-                      fit: BoxFit.contain,
-                      placeholderBuilder: (_) => Icon(
-                        wallet.type.icon,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    ),
-                  ),
+                  WalletLogo(wallet: wallet, size: 28),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(

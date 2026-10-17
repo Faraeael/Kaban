@@ -117,5 +117,31 @@ void main() {
       expect(restored.length, 1);
       expect(restored.first['name'], 'GCash');
     });
+
+    test('clears stale qr_image_path on import when image file does not exist',
+        () async {
+      final database = await db.db;
+      final payload = <String, dynamic>{
+        'app': 'kaban',
+        'schemaVersion': 8,
+        'wallets': [
+          {
+            'id': 'w_qr',
+            'name': 'BDO',
+            'type': 'bank',
+            'starting_balance': 2000.0,
+            'currency': 'PHP',
+            'color_value': 0xFF0033A0,
+            'archived': 0,
+            'logo_asset': 'assets/logos/bdo.svg',
+            'qr_image_path': '/nonexistent/device/wallet_qrs/stale.png',
+          }
+        ],
+      };
+
+      await service.import(payload);
+      final restored = await database.query('wallets');
+      expect(restored.single['qr_image_path'], isNull);
+    });
   });
 }

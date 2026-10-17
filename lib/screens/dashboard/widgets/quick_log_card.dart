@@ -7,6 +7,7 @@ import '../../../models/quick_preset.dart';
 import '../../../models/transaction.dart';
 import '../../../state/data_providers.dart';
 import '../../../state/quick_preset_provider.dart';
+import '../../../utils/formatters.dart';
 
 const _uuid = Uuid();
 
@@ -154,7 +155,7 @@ class QuickLogCard extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => _PresetEditSheet(preset: preset),
+      builder: (_) => PresetEditSheet(preset: preset),
     );
   }
 }
@@ -423,7 +424,7 @@ class _PresetManagerSheet extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => _PresetEditSheet(preset: preset),
+      builder: (_) => PresetEditSheet(preset: preset),
     );
   }
 }
@@ -432,15 +433,15 @@ class _PresetManagerSheet extends ConsumerWidget {
 // Preset Edit Sheet
 // ---------------------------------------------------------------------------
 
-class _PresetEditSheet extends ConsumerStatefulWidget {
+class PresetEditSheet extends ConsumerStatefulWidget {
   final QuickPreset? preset;
-  const _PresetEditSheet({this.preset});
+  const PresetEditSheet({super.key, this.preset});
 
   @override
-  ConsumerState<_PresetEditSheet> createState() => _PresetEditSheetState();
+  ConsumerState<PresetEditSheet> createState() => _PresetEditSheetState();
 }
 
-class _PresetEditSheetState extends ConsumerState<_PresetEditSheet> {
+class _PresetEditSheetState extends ConsumerState<PresetEditSheet> {
   late final TextEditingController _icon;
   late final TextEditingController _label;
   late final TextEditingController _amount;
@@ -454,7 +455,7 @@ class _PresetEditSheetState extends ConsumerState<_PresetEditSheet> {
     _icon = TextEditingController(text: p?.icon ?? '💸');
     _label = TextEditingController(text: p?.label ?? '');
     _amount = TextEditingController(
-        text: p != null ? p.amount.toStringAsFixed(0) : '');
+        text: p != null ? formatInputAmount(p.amount) : '');
     _category = p?.category ?? kDefaultExpenseCategories.first;
     _walletId = p?.walletId;
   }

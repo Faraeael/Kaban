@@ -1,9 +1,17 @@
 import 'dart:convert';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:finance_tracker/data/database.dart';
+import 'package:finance_tracker/models/app_settings.dart';
+import 'package:finance_tracker/models/chat_message.dart';
 import 'package:finance_tracker/services/ai/ai_provider_config.dart';
+import 'package:finance_tracker/services/ai/coach_service.dart';
 import 'package:finance_tracker/services/ai/remote_coach.dart';
 import 'package:finance_tracker/services/coach_actions.dart';
-
+import 'package:finance_tracker/state/data_providers.dart';
+import 'package:finance_tracker/state/settings_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 void main() {
   group('RemoteCoach Conversation Memory & JSON Schema Preservation', () {
     late RemoteCoach coach;
@@ -132,6 +140,153 @@ void main() {
       expect(reply.text, 'Adding your ₱15 transport expense.');
       expect(reply.actions.length, 1);
       expect((reply.actions.first as LogTransactionAction).amount, 15);
+
+      // Even if the model included leading text before ```json,
+      // recordAssistantTurn preserves the parsed actions in conversation.
+      const prefixedResponse = '''Sure! Here is your card:
+```json
+{
+  "reply": "Adding your ₱15 transport expense.",
+  "actions": [
+    { "type": "log_expense", "amount": 15, "category": "Transport" }
+  ]
+}
+```''';
+      final replyPrefixed =
+          coach.parseEnvelopeForTesting(prefixedResponse, 'Paid 15 for jeep');
+      coach.recordAssistantTurnForTesting(prefixedResponse, replyPrefixed);
+      final stored =
+          json.decode(coach.conversation.last.content) as Map<String, dynamic>;
+      expect((stored['actions'] as List), hasLength(1));
+    });
+
+    test(
+        'syncLastAssistantActions updates conversation when fallback parser recovers actions',
+        () {
+      const plainReply = 'Got it, logging ₱15 for your jeepney fare.';
+      final reply =
+          coach.parseEnvelopeForTesting(plainReply, 'Paid ₱15 jeep fare');
+      coach.recordAssistantTurnForTesting(plainReply, reply);
+
+      coach.syncLastAssistantActions(
+        plainReply,
+        const [
+          LogTransactionAction(
+            amount: 15,
+            isIncome: false,
+            category: 'Transport',
+            note: 'jeep fare',
+          ),
+        ],
+      );
+
+      final stored =
+          json.decode(coach.conversation.last.content) as Map<String, dynamic>;
+      expect((stored['actions'] as List), hasLength(1));
+      expect((stored['actions'] as List).first['type'], 'log_expense');
+    });
+
+    test(
+        'RemoteCoach system prompt includes budgets and active subscriptions',
+        () {
+      final snap = FinanceSnapshot(
+        walletBalances: {'BDO': 20000},
+        totalDebt: 5000,
+        monthIncome: 45000,
+        monthExpense: 22000,
+        monthExpenseByCategory: {'Food': 12000},
+        budgets: {'Food': 10000},
+        subscriptions: [
+          SubscriptionSnapshot(
+            name: 'Netflix',
+            amount: 549,
+            cadence: 'Monthly',
+            category: 'Subscriptions',
+            nextBillingDate: DateTime(2026, 11, 1),
+          ),
+        ],
+        debts: const [],
+        suggestions: const [],
+      );
+
+      final prompt = coach.systemPromptForTesting(snap);
+      expect(prompt, contains('## Category Budgets'));
+      expect(prompt, contains('Food: ₱10000.00/mo limit'));
+      expect(prompt, contains('## Active Subscriptions'));
+      expect(prompt, contains('Netflix: ₱549.00 (Monthly, Subscriptions)'));
+      expect(prompt, contains('create_budget'));
+    });
+
+    test(
+        'coachServiceProvider hydrates SQLite chat_messages with JSON actions and produces cards on follow-up turns without context reset',
+        () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      SharedPreferences.setMockInitialValues({});
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+      final db = AppDatabase.instance;
+      db.overridePath = inMemoryDatabasePath;
+      await db.close();
+
+      final container = ProviderContainer();
+      addTearDown(() async {
+        container.dispose();
+        await db.close();
+      });
+
+      // Persist Turn 1 in SQLite (plain text assistant message, as CoachScreen stores it)
+      await container.read(chatListProvider.notifier).add(
+            ChatMessage(
+              id: 'u1',
+              role: ChatRole.user,
+              content: 'Paid ₱15 jeep fare',
+              timestamp: DateTime(2026, 10, 17, 8, 0),
+            ),
+          );
+      await container.read(chatListProvider.notifier).add(
+            ChatMessage(
+              id: 'a1',
+              role: ChatRole.assistant,
+              content: 'Prepared a card for ₱15 jeep fare.',
+              timestamp: DateTime(2026, 10, 17, 8, 1),
+            ),
+          );
+
+      await container.read(settingsProvider.notifier).update(
+            const AppSettings(
+              aiProvider: AIProvider.openrouter,
+              allowRemoteAI: true,
+            ),
+          );
+
+      final hydrated =
+          await container.read(coachServiceProvider.future) as RemoteCoach;
+      expect(hydrated.conversation, hasLength(2));
+      final turn1Assistant =
+          json.decode(hydrated.conversation.last.content) as Map<String, dynamic>;
+      expect(turn1Assistant['reply'], 'Prepared a card for ₱15 jeep fare.');
+      expect((turn1Assistant['actions'] as List), hasLength(1));
+      expect((turn1Assistant['actions'] as List).first['type'], 'log_expense');
+      expect((turn1Assistant['actions'] as List).first['amount'], 15);
+
+      // Turn 2: User logs a second expense without resetting context
+      const turn2User = 'Spent 150 lunch';
+      hydrated.conversation.add((role: 'user', content: turn2User));
+      const turn2PlainReply = 'Logged ₱150 for lunch.';
+      final turn2Reply =
+          hydrated.parseEnvelopeForTesting(turn2PlainReply, turn2User);
+      hydrated.recordAssistantTurnForTesting(turn2PlainReply, turn2Reply);
+
+      // Fallback parser recovers the card and syncs conversation
+      final recovered =
+          CoachActionParser().parse(assistantReply: '', userMessage: turn2User);
+      expect(recovered, hasLength(1));
+      hydrated.syncLastAssistantActions(turn2PlainReply, recovered);
+
+      final turn2Assistant =
+          json.decode(hydrated.conversation.last.content) as Map<String, dynamic>;
+      expect((turn2Assistant['actions'] as List), hasLength(1));
+      expect((turn2Assistant['actions'] as List).first['amount'], 150);
     });
   });
 }

@@ -14,12 +14,27 @@ class SettingsService {
     if (raw == null) return const AppSettings();
     try {
       final m = json.decode(raw) as Map<String, dynamic>;
+      final rawSlots = m['aiSlotsByProvider'] as Map<String, dynamic>?;
+      final slots = <AIProvider, ProviderSlot>{};
+      if (rawSlots != null) {
+        rawSlots.forEach((name, slotJson) {
+          AIProvider? p;
+          try {
+            p = AIProvider.values.byName(name);
+          } catch (_) {
+            return;
+          }
+          slots[p] = ProviderSlot.fromJson(
+            slotJson is Map
+                ? Map<String, dynamic>.from(slotJson)
+                : null,
+          );
+        });
+      }
       return AppSettings(
         aiProvider:
             AIProvider.values.byName(m['aiProvider'] as String? ?? 'local'),
-        aiApiKey: m['aiApiKey'] as String? ?? '',
-        aiBaseUrl: m['aiBaseUrl'] as String? ?? '',
-        aiModel: m['aiModel'] as String? ?? '',
+        aiSlotsByProvider: slots,
         allowRemoteAI: m['allowRemoteAI'] as bool? ?? false,
         anonymizeBalances: m['anonymizeBalances'] as bool? ?? true,
         autoCaptureEnabled: m['autoCaptureEnabled'] as bool? ?? false,
@@ -45,9 +60,10 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     final m = {
       'aiProvider': s.aiProvider.name,
-      'aiApiKey': s.aiApiKey,
-      'aiBaseUrl': s.aiBaseUrl,
-      'aiModel': s.aiModel,
+      'aiSlotsByProvider': {
+        for (final p in AIProvider.values)
+          p.name: s.slotFor(p).toJson(),
+      },
       'allowRemoteAI': s.allowRemoteAI,
       'anonymizeBalances': s.anonymizeBalances,
       'autoCaptureEnabled': s.autoCaptureEnabled,

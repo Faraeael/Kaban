@@ -5,7 +5,7 @@ import '../../../utils/formatters.dart';
 class DebtProgressCard extends StatelessWidget {
   final double totalDebt;
   final double startingTotalDebt;
-  final int monthsRemaining;
+  final int? monthsRemaining;
   final List<Wallet> wallets;
   final VoidCallback? onTap;
 
@@ -26,12 +26,12 @@ class DebtProgressCard extends StatelessWidget {
         ? 0.0
         : ((startingTotalDebt - totalDebt) / startingTotalDebt).clamp(0, 1);
 
+    final months = monthsRemaining;
     final semanticLabel = isFullyDebtFree
         ? 'Debt payoff: Fully debt-free! All tracked loans and cards are 100% paid off.'
         : (startingTotalDebt > 0
-            ? 'Debt payoff: ${peso(totalDebt)} remaining, ${(progress * 100).toStringAsFixed(0)}% paid off, ${monthsRemaining > 0 ? "$monthsRemaining months remaining" : "paid off"}'
+            ? 'Debt payoff: ${peso(totalDebt)} remaining, ${(progress * 100).toStringAsFixed(0)}% paid off, ${months == null ? "not payable within 50 years" : (months > 0 ? "$months months remaining" : "paid off")}'
             : 'Debt payoff: No debts tracked. Tap to add a debt.');
-
     return Semantics(
       label: semanticLabel,
       child: InkWell(
@@ -84,15 +84,17 @@ class DebtProgressCard extends StatelessWidget {
                     )
                   else
                     Text(
-                      monthsRemaining > 0
-                          ? '$monthsRemaining mo left'
-                          : 'Done!',
+                      months == null
+                          ? 'Payment too low'
+                          : (months > 0 ? '$months mo left' : 'Done!'),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: monthsRemaining > 0
-                            ? t.colorScheme.primary
-                            : t.colorScheme.tertiary,
+                        color: months == null
+                            ? t.colorScheme.error
+                            : (months > 0
+                                ? t.colorScheme.primary
+                                : t.colorScheme.tertiary),
                       ),
                     ),
                 ],

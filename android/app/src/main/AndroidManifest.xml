@@ -9,6 +9,8 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
         android:enableOnBackInvokedCallback="true">
 
         <activity
@@ -29,16 +31,6 @@
             </intent-filter>
         </activity>
 
-        <service
-            android:name=".FinanceNotificationListener"
-            android:label="Kaban Notifier"
-            android:exported="true"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService" />
-            </intent-filter>
-        </service>
-
         <!-- Quick Log Home Screen Widget -->
         <receiver
             android:name=".QuickFareWidgetProvider"
@@ -52,6 +44,20 @@
                 android:resource="@xml/widget_quick_fare_info" />
         </receiver>
 
+        <!-- Receive QR Deck Home Screen Widget -->
+        <receiver
+            android:name=".QuickQrWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="ph.kaban.app.QR_WIDGET_REFRESH" />
+                <action android:name="ph.kaban.app.QR_WIDGET_PREV" />
+                <action android:name="ph.kaban.app.QR_WIDGET_NEXT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_qr_deck_info" />
+        </receiver>
         <receiver
             android:name=".QuickLogReceiver"
             android:exported="false">

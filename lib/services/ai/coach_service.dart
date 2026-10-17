@@ -21,6 +21,8 @@ class FinanceSnapshot {
   final double monthExpense;
   final Map<String, double> monthExpenseByCategory;
   final List<DebtSnapshot> debts;
+  final Map<String, double> budgets;
+  final List<SubscriptionSnapshot> subscriptions;
   final List<String> suggestions;
   final bool remoteConfigured;
 
@@ -31,8 +33,26 @@ class FinanceSnapshot {
     required this.monthExpense,
     required this.monthExpenseByCategory,
     required this.debts,
+    this.budgets = const {},
+    this.subscriptions = const [],
     required this.suggestions,
     this.remoteConfigured = false,
+  });
+}
+
+class SubscriptionSnapshot {
+  final String name;
+  final double amount;
+  final String cadence;
+  final String category;
+  final DateTime nextBillingDate;
+
+  const SubscriptionSnapshot({
+    required this.name,
+    required this.amount,
+    required this.cadence,
+    required this.category,
+    required this.nextBillingDate,
   });
 }
 

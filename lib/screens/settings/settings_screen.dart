@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:local_auth/local_auth.dart';
+import '../../models/app_settings.dart';
 import '../../models/debt.dart';
 import '../../services/ai/ai_provider_config.dart';
 import '../../services/backup_service.dart';
@@ -31,9 +32,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void initState() {
     super.initState();
     final s = ref.read(settingsProvider);
-    _apiKey = TextEditingController(text: s.aiApiKey);
-    _baseUrl = TextEditingController(text: s.aiBaseUrl);
-    _model = TextEditingController(text: s.aiModel);
+    final initialSlot = s.slotFor(s.aiProvider);
+    _apiKey = TextEditingController(text: initialSlot.apiKey);
+    _baseUrl = TextEditingController(text: initialSlot.baseUrl);
+    _model = TextEditingController(text: initialSlot.model);
+  }
+
+  /// Re-seed the AI text controllers from [slot]. Call from the provider
+  /// dropdown's onChanged so swapping providers shows that provider's saved
+  /// values, not the previously-shown ones.
+  void _reseedFromSlot(ProviderSlot slot) {
+    _apiKey.text = slot.apiKey;
+    _baseUrl.text = slot.baseUrl;
+    _model.text = slot.model;
   }
 
   @override
@@ -77,11 +88,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 .toList(),
             onChanged: (v) {
               if (v == null) return;
-              final config = kAIProviders[v]!;
+              final newSlot = settings.slotFor(v);
+              setState(() {
+                _reseedFromSlot(newSlot);
+              });
               notifier.update(settings.copyWith(
                 aiProvider: v,
-                aiBaseUrl: config.defaultBaseUrl ?? settings.aiBaseUrl,
-                aiModel: config.defaultModel ?? settings.aiModel,
                 // Picking a remote provider means the user wants remote AI —
                 // silently keeping it off is why the coach ignored the switch.
                 allowRemoteAI: v != AIProvider.local,
@@ -112,20 +124,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             TextField(
               controller: _apiKey,
               decoration: const InputDecoration(labelText: 'API key'),
-              obscureText: true,
-              onChanged: (v) => notifier.update(settings.copyWith(aiApiKey: v)),
+              onChanged: (v) {
+                final slot = settings.slotFor(settings.aiProvider);
+                notifier.update(settings.withSlot(
+                  settings.aiProvider,
+                  slot.copyWith(apiKey: v),
+                ));
+              },
             ),
             const SizedBox(height: 10),
             _ModelField(
-              currentModelId: settings.aiModel.isNotEmpty
-                  ? settings.aiModel
+              currentModelId: settings.slotFor(settings.aiProvider).model.isNotEmpty
+                  ? settings.slotFor(settings.aiProvider).model
                   : (kAIProviders[settings.aiProvider]!.defaultModel ?? ''),
               provider: settings.aiProvider,
-              apiKey: settings.aiApiKey,
-              baseUrl: settings.aiBaseUrl,
+              apiKey: settings.slotFor(settings.aiProvider).apiKey,
+              baseUrl: settings.slotFor(settings.aiProvider).baseUrl.isNotEmpty
+                  ? settings.slotFor(settings.aiProvider).baseUrl
+                  : (kAIProviders[settings.aiProvider]!.defaultBaseUrl ?? ''),
               onPick: (id) {
                 _model.text = id;
-                notifier.update(settings.copyWith(aiModel: id));
+                final slot = settings.slotFor(settings.aiProvider);
+                notifier.update(settings.withSlot(
+                  settings.aiProvider,
+                  slot.copyWith(model: id),
+                ));
               },
               t: t,
             ),
@@ -142,8 +165,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               child: Builder(builder: (context) {
                 final cfg = kAIProviders[settings.aiProvider]!;
-                final isDefault = settings.aiBaseUrl.isEmpty ||
-                    settings.aiBaseUrl == cfg.defaultBaseUrl;
+                final savedBaseUrl = settings.slotFor(settings.aiProvider).baseUrl;
+                final isDefault = savedBaseUrl.isEmpty ||
+                    savedBaseUrl == cfg.defaultBaseUrl;
                 return ExpansionTile(
                   title: Text(
                     'Advanced',
@@ -168,8 +192,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         hintText:
                             'Only change if your provider gave you a custom endpoint',
                       ),
-                      onChanged: (v) =>
-                          notifier.update(settings.copyWith(aiBaseUrl: v)),
+                      onChanged: (v) {
+                        final slot = settings.slotFor(settings.aiProvider);
+                        notifier.update(settings.withSlot(
+                          settings.aiProvider,
+                          slot.copyWith(baseUrl: v),
+                        ));
+                      },
                     ),
                   ],
                 );
@@ -190,124 +219,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 12),
             TestApiButton(
               provider: settings.aiProvider,
-              baseUrl: settings.aiBaseUrl.isNotEmpty
-                  ? settings.aiBaseUrl
+              baseUrl: settings.slotFor(settings.aiProvider).baseUrl.isNotEmpty
+                  ? settings.slotFor(settings.aiProvider).baseUrl
                   : (kAIProviders[settings.aiProvider]!.defaultBaseUrl ?? ''),
-              apiKey: settings.aiApiKey,
+              apiKey: settings.slotFor(settings.aiProvider).apiKey,
               model: _model.text.isNotEmpty
                   ? _model.text
                   : (kAIProviders[settings.aiProvider]!.defaultModel ?? ''),
             ),
           ],
-          const SizedBox(height: 20),
-          _section('Auto-capture', t),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Enable notification capture (Android)'),
-            subtitle: const Text(
-                'Read GCash, Maya, and bank notifications to log transactions automatically.'),
-            value: settings.autoCaptureEnabled,
-            onChanged: (v) async {
-              notifier.update(settings.copyWith(autoCaptureEnabled: v));
-              if (v) {
-                final granted = await ref
-                    .read(notificationListenerServiceProvider)
-                    .isPermissionGranted();
-                if (!granted) {
-                  await ref
-                      .read(notificationListenerServiceProvider)
-                      .requestPermission();
-                }
-                await ref
-                    .read(notificationListenerServiceProvider)
-                    .syncWhitelist(settings.autoCapturePackages);
-              }
-            },
-          ),
-          const SizedBox(height: 6),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.security_rounded, size: 18),
-            label: const Text('Check / grant notification access in Android'),
-            onPressed: () => ref
-                .read(notificationListenerServiceProvider)
-                .requestPermission(),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color:
-                  t.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              'Android 13+ note: For sideloaded apps, Android disables notification access by default. '
-              'If the toggle is greyed out in Android Settings, go to App Info → ⋮ (top right) → "Allow restricted settings" first.',
-              style: t.textTheme.bodySmall
-                  ?.copyWith(color: t.colorScheme.onSurfaceVariant),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Whitelisted packages',
-            style: t.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 6),
-          for (final pkg in settings.autoCapturePackages)
-            Card(
-              child: ListTile(
-                title: Text(pkg, style: const TextStyle(fontSize: 13)),
-                trailing: IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  tooltip: 'Remove $pkg from whitelist',
-                  onPressed: () {
-                    final next = settings.autoCapturePackages.difference({pkg});
-                    notifier
-                        .update(settings.copyWith(autoCapturePackages: next));
-                    ref
-                        .read(notificationListenerServiceProvider)
-                        .syncWhitelist(next);
-                  },
-                ),
-              ),
-            ),
-          OutlinedButton.icon(
-            onPressed: () async {
-              final c = TextEditingController();
-              await showDialog<void>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Add package'),
-                  content: TextField(
-                      controller: c,
-                      decoration:
-                          const InputDecoration(hintText: 'com.example.app')),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Cancel')),
-                    FilledButton(
-                      onPressed: () {
-                        if (c.text.trim().isNotEmpty) {
-                          final next = settings.autoCapturePackages
-                              .union({c.text.trim()});
-                          notifier.update(
-                              settings.copyWith(autoCapturePackages: next));
-                          ref
-                              .read(notificationListenerServiceProvider)
-                              .syncWhitelist(next);
-                        }
-                        Navigator.pop(ctx);
-                      },
-                      child: const Text('Add Package'),
-                    ),
-                  ],
-                ),
-              );
-            },
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Add package'),
-          ),
           const SizedBox(height: 20),
           _section('Defaults', t),
           ListTile(
@@ -652,6 +572,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     }
   }
+
 
   Widget _section(String title, ThemeData t) {
     return Padding(

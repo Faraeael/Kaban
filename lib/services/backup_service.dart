@@ -28,7 +28,7 @@ class BackupService {
     final database = await _db.db;
     final data = <String, dynamic>{
       'app': 'kaban',
-      'schemaVersion': 5,
+      'schemaVersion': 8,
     };
     for (final table in _tables) {
       data[table] = await database.query(table);
@@ -52,9 +52,18 @@ class BackupService {
       for (final table in _tables) {
         final rows = (data[table] as List?) ?? const [];
         for (final row in rows) {
+          final map = Map<String, Object?>.from(row as Map);
+          if (table == 'wallets') {
+            final qrPath = map['qr_image_path'] as String?;
+            if (qrPath != null &&
+                qrPath.isNotEmpty &&
+                !File(qrPath).existsSync()) {
+              map['qr_image_path'] = null;
+            }
+          }
           batch.insert(
             table,
-            Map<String, Object?>.from(row as Map),
+            map,
             conflictAlgorithm: ConflictAlgorithm.replace,
           );
         }

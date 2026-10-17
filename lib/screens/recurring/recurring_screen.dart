@@ -92,7 +92,8 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen>
             controller: _tabController,
             children: [
               _buildRecurringTab(t, recurring, activeWallets),
-              _buildSubscriptionsTab(t, subs, suggestions, totalMonthly),
+              _buildSubscriptionsTab(
+                  t, subs, suggestions, totalMonthly, activeWallets),
             ],
           ),
         ),
@@ -151,8 +152,12 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen>
     );
   }
 
-  Widget _buildSubscriptionsTab(ThemeData t, List<Subscription> subs,
-      List<SubscriptionSuggestion> suggestions, double totalMonthly) {
+  Widget _buildSubscriptionsTab(
+      ThemeData t,
+      List<Subscription> subs,
+      List<SubscriptionSuggestion> suggestions,
+      double totalMonthly,
+      List<Wallet> wallets) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
       children: [
@@ -250,9 +255,21 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen>
                 subtitle: Text(
                   '${s.cadence.label} · next ${s.nextBillingDate.toString().split(' ').first}',
                 ),
-                trailing: Text(
-                  peso(s.amount),
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      peso(s.amount),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.check_circle_outline_rounded,
+                          size: 20),
+                      tooltip: 'Mark paid',
+                      onPressed: () => _markSubscriptionPaid(s, wallets),
+                    ),
+                  ],
                 ),
                 onLongPress: () => _confirmDelete(s),
               ),
@@ -316,6 +333,100 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen>
         ],
       ),
     );
+  }
+
+  DateTime _rollNextBillingDate(DateTime current, Cadence cadence) {
+    final targetMonths = switch (cadence) {
+      Cadence.monthly => 1,
+      Cadence.quarterly => 3,
+      Cadence.yearly => 12,
+    };
+    final newYear = current.year + ((current.month - 1 + targetMonths) ~/ 12);
+    final newMonth = ((current.month - 1 + targetMonths) % 12) + 1;
+    // Get last day of target month:
+    final daysInTargetMonth = DateTime(newYear, newMonth + 1, 0).day;
+    final clampedDay = current.day > daysInTargetMonth ? daysInTargetMonth : current.day;
+    return DateTime(newYear, newMonth, clampedDay);
+  }
+
+  Future<void> _markSubscriptionPaid(
+      Subscription s, List<Wallet> wallets) async {
+    // Guard against archived or nonexistent walletId:
+    final hasActiveLinkedWallet = wallets.any((w) => w.id == s.walletId);
+    String? selectedWalletId = hasActiveLinkedWallet
+        ? s.walletId
+        : (wallets.isNotEmpty ? wallets.first.id : null);
+    if (selectedWalletId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add a wallet first.')),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          // Dialog content
+          return AlertDialog(
+            title: Text('Log ${s.name} payment?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Log ${peso(s.amount)} expense and advance next billing date to ${_rollNextBillingDate(s.nextBillingDate, s.cadence).toString().split(' ').first}?',
+                ),
+                const SizedBox(height: 16),
+                const Text('Paying Wallet',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedWalletId,
+                  decoration: const InputDecoration(isDense: true),
+                  items: wallets
+                      .map((x) => DropdownMenuItem(
+                            value: x.id,
+                            child: Text(x.name),
+                          ))
+                      .toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setDialogState(() => selectedWalletId = val);
+                    }
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogCtx, true),
+                child: const Text('Confirm & Log'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (confirmed != true) return;
+    final nextDate = _rollNextBillingDate(s.nextBillingDate, s.cadence);
+    await ref.read(subscriptionListProvider.notifier).recordPayment(
+          subscription: s,
+          walletId: selectedWalletId!,
+          nextDate: nextDate,
+        );
+    await ref.read(transactionListProvider.notifier).load();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Paid ${s.name}. Next due: ${nextDate.toString().split(' ').first}')),
+      );
+    }
   }
 
   void _showAddRecurringSheet(BuildContext context, List<Wallet> wallets,
@@ -471,7 +582,7 @@ class _RecurringSheetState extends State<_RecurringSheet> {
     super.initState();
     _name = TextEditingController(text: widget.initial?.name ?? '');
     _amount = TextEditingController(
-        text: widget.initial?.amount.toStringAsFixed(0) ?? '');
+        text: formatInputAmount(widget.initial?.amount));
     _type = widget.initial?.type ?? TransactionType.expense;
     _category = widget.initial?.category ?? 'Transport';
     _intervalDays = widget.initial?.intervalDays ?? 1;

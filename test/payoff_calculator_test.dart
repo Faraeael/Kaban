@@ -79,7 +79,7 @@ void main() {
           extraMonthlyPayment: 1000,
           strategy: DebtStrategy.avalanche);
 
-      expect(withExtra.totalMonths, lessThan(noExtra.totalMonths));
+      expect(withExtra.totalMonths, lessThan(noExtra.totalMonths!));
       expect(withExtra.totalInterestPaid, lessThan(noExtra.totalInterestPaid));
     });
 
@@ -113,6 +113,30 @@ void main() {
 
       expect(result.totalMonths, 3);
       expect(result.entries.first.monthsToPayoff, 3);
+    });
+
+    test(
+        'marks debt as not payoffable when monthly interest exceeds payment instead of reporting 600 months',
+        () {
+      const unpayable = Debt(
+        id: 'card',
+        name: 'High APR Card',
+        balance: 50000,
+        apr: 36, // 3% per month = ₱1,500 monthly interest
+        minPayment: 500, // less than ₱1,500 monthly interest
+        strategy: DebtStrategy.avalanche,
+      );
+
+      final result = calc.simulate(
+        debts: [unpayable],
+        extraMonthlyPayment: 0,
+        strategy: DebtStrategy.avalanche,
+      );
+
+      expect(result.isPayoffPossible, isFalse);
+      expect(result.totalMonths, isNull);
+      expect(result.entries.single.isPayoffPossible, isFalse);
+      expect(result.entries.single.monthsToPayoff, isNull);
     });
   });
 }

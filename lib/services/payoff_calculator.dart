@@ -2,25 +2,29 @@ import '../models/debt.dart';
 
 class DebtPayoffResult {
   final List<DebtPayoffEntry> entries;
-  final int totalMonths;
+  final int? totalMonths;
   final double totalInterestPaid;
+  final bool isPayoffPossible;
 
   const DebtPayoffResult({
     required this.entries,
     required this.totalMonths,
     required this.totalInterestPaid,
+    this.isPayoffPossible = true,
   });
 }
 
 class DebtPayoffEntry {
   final Debt debt;
-  final int monthsToPayoff;
+  final int? monthsToPayoff;
   final double interestPaid;
+  final bool isPayoffPossible;
 
   const DebtPayoffEntry({
     required this.debt,
     required this.monthsToPayoff,
     required this.interestPaid,
+    this.isPayoffPossible = true,
   });
 }
 
@@ -60,7 +64,8 @@ class PayoffCalculator {
     }
 
     final count = ordered.length;
-    final balances = List<double>.generate(count, (i) => ordered[i].balance);
+    final balances = List<double>.generate(
+        count, (i) => ordered[i].paidOff ? 0.0 : ordered[i].balance);
     final interest = List<double>.filled(count, 0.0);
     final payoffMonth = List<int?>.filled(count, null);
     final monthlyRates =
@@ -80,6 +85,9 @@ class PayoffCalculator {
     for (var i = 0; i < count; i++) {
       if (balances[i] > 0.005) {
         activeCount++;
+      } else {
+        balances[i] = 0;
+        payoffMonth[i] = 0;
       }
     }
 
@@ -149,16 +157,23 @@ class PayoffCalculator {
     }
 
     final entries = List<DebtPayoffEntry>.generate(count, (i) {
+      final paidMonth = payoffMonth[i];
       return DebtPayoffEntry(
         debt: ordered[i],
-        monthsToPayoff: payoffMonth[i] ?? month,
+        monthsToPayoff: paidMonth,
         interestPaid: interest[i],
+        isPayoffPossible: paidMonth != null,
       );
     });
 
-    final totalMonths = entries.isEmpty
-        ? 0
-        : entries.map((e) => e.monthsToPayoff).reduce((a, b) => a > b ? a : b);
+    final isPayoffPossible = entries.every((e) => e.isPayoffPossible);
+    final totalMonths = !isPayoffPossible
+        ? null
+        : (entries.isEmpty
+            ? 0
+            : entries
+                .map((e) => e.monthsToPayoff!)
+                .reduce((a, b) => a > b ? a : b));
 
     final totalInterest =
         entries.fold<double>(0, (sum, e) => sum + e.interestPaid);
@@ -167,6 +182,7 @@ class PayoffCalculator {
       entries: entries,
       totalMonths: totalMonths,
       totalInterestPaid: totalInterest,
+      isPayoffPossible: isPayoffPossible,
     );
 
     _cachedDebts = debts;

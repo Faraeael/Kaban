@@ -50,8 +50,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     final insight = ref.watch(dashboardInsightProvider);
     final payoff = ref.watch(dashboardPayoffProvider);
-    final startingDebt = debts.fold<double>(0, (s, d) => s + d.balance) +
-        payoff.totalInterestPaid;
+    final startingDebt =
+        debts.fold<double>(0, (s, d) => s + (d.paidOff ? 0 : d.balance)) +
+            (payoff.isPayoffPossible ? payoff.totalInterestPaid : 0);
 
     final visibleWallets = wallets.where((w) => !w.archived).toList();
 
@@ -238,7 +239,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             );
 
             final debtProgressCard = DebtProgressCard(
-              totalDebt: debts.fold(0, (s, d) => s + d.balance),
+              totalDebt:
+                  debts.fold(0, (s, d) => s + (d.paidOff ? 0 : d.balance)),
               startingTotalDebt: startingDebt,
               monthsRemaining: payoff.totalMonths,
               wallets: wallets,

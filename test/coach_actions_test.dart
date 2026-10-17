@@ -406,5 +406,67 @@ Due date: 15th
       expect(restored.imagePath, msg.imagePath);
       expect(restored.content, msg.content);
     });
+
+    test(
+        'detects preposition-less expense like Paid ₱15 jeep fare and TransferAction',
+        () {
+      final jeep = parser.parse(
+        assistantReply: '',
+        userMessage: 'Paid ₱15 jeep fare',
+      );
+      expect(jeep, hasLength(1));
+      final exp = jeep.single as LogTransactionAction;
+      expect(exp.amount, 15);
+      expect(exp.isIncome, isFalse);
+      expect(exp.category, 'Transport');
+
+      final transfer = parser.parse(
+        assistantReply: '',
+        userMessage: 'Transfer ₱1,000 from BDO to GCash',
+      );
+      expect(transfer, hasLength(1));
+      final tr = transfer.single as TransferAction;
+      expect(tr.amount, 1000);
+      expect(tr.fromWalletName, 'BDO');
+      expect(tr.toWalletName, 'GCash');
+    });
+
+    test('parses CreateBudgetAction from natural language and JSON', () {
+      final nl = parser.parse(
+        assistantReply: '',
+        userMessage: 'Set a ₱5,000 budget for food',
+      );
+      expect(nl, hasLength(1));
+      final bAct = nl.single as CreateBudgetAction;
+      expect(bAct.category, 'Food');
+      expect(bAct.monthlyLimit, 5000);
+
+      final jsonCreate = {
+        'type': 'create_budget',
+        'category': 'Transport',
+        'monthly_limit': 3000,
+      };
+      final parsedCreate = parseJsonAction(jsonCreate);
+      expect(parsedCreate, isA<CreateBudgetAction>());
+      expect((parsedCreate as CreateBudgetAction).category, 'Transport');
+      expect(parsedCreate.monthlyLimit, 3000);
+
+      final jsonUpdate = {
+        'type': 'update_budget',
+        'category': 'Transport',
+        'new_monthly_limit': 4500,
+      };
+      final parsedUpdate = parseJsonAction(jsonUpdate);
+      expect(parsedUpdate, isA<UpdateBudgetAction>());
+      expect((parsedUpdate as UpdateBudgetAction).newMonthlyLimit, 4500);
+
+      final jsonDelete = {
+        'type': 'delete_budget',
+        'category': 'Transport',
+      };
+      final parsedDelete = parseJsonAction(jsonDelete);
+      expect(parsedDelete, isA<DeleteBudgetAction>());
+      expect((parsedDelete as DeleteBudgetAction).category, 'Transport');
+    });
   });
 }

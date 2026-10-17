@@ -15,7 +15,8 @@
       "Shell(where.exe:*)",
       "Shell(powershell.exe:*)",
       "Shell(curl.exe:*)",
-      "Shell(dart:*)"
+      "Shell(dart:*)",
+      "powershell"
     ],
     "deny": [],
     "defaultMode": "default"

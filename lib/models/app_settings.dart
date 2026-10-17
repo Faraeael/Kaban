@@ -2,11 +2,48 @@ import 'package:flutter/material.dart';
 import '../models/debt.dart';
 import '../services/ai/ai_provider_config.dart';
 
+/// Per-provider credential + endpoint override. The `Local` slot is always
+/// empty by convention — the coach short-circuits to the offline engine
+/// before any slot lookup.
+class ProviderSlot {
+  final String apiKey;
+  final String baseUrl;
+  final String model;
+
+  const ProviderSlot({
+    this.apiKey = '',
+    this.baseUrl = '',
+    this.model = '',
+  });
+
+  bool get isEmpty => apiKey.isEmpty && baseUrl.isEmpty && model.isEmpty;
+
+  Map<String, dynamic> toJson() => {
+        'apiKey': apiKey,
+        'baseUrl': baseUrl,
+        'model': model,
+      };
+
+  static ProviderSlot fromJson(Map<String, dynamic>? m) {
+    if (m == null) return const ProviderSlot();
+    return ProviderSlot(
+      apiKey: m['apiKey'] as String? ?? '',
+      baseUrl: m['baseUrl'] as String? ?? '',
+      model: m['model'] as String? ?? '',
+    );
+  }
+
+  ProviderSlot copyWith({String? apiKey, String? baseUrl, String? model}) =>
+      ProviderSlot(
+        apiKey: apiKey ?? this.apiKey,
+        baseUrl: baseUrl ?? this.baseUrl,
+        model: model ?? this.model,
+      );
+}
+
 class AppSettings {
   final AIProvider aiProvider;
-  final String aiApiKey;
-  final String aiBaseUrl;
-  final String aiModel;
+  final Map<AIProvider, ProviderSlot> aiSlotsByProvider;
   final bool allowRemoteAI;
   final bool anonymizeBalances;
   final bool autoCaptureEnabled;
@@ -21,9 +58,7 @@ class AppSettings {
 
   const AppSettings({
     this.aiProvider = AIProvider.local,
-    this.aiApiKey = '',
-    this.aiBaseUrl = '',
-    this.aiModel = '',
+    this.aiSlotsByProvider = const {},
     this.allowRemoteAI = false,
     this.anonymizeBalances = true,
     this.autoCaptureEnabled = false,
@@ -37,11 +72,21 @@ class AppSettings {
     this.autoBackupOnLaunch = false,
   });
 
+  /// Returns the saved slot for [p], or an empty slot if nothing was stored.
+  ProviderSlot slotFor(AIProvider p) =>
+      aiSlotsByProvider[p] ?? const ProviderSlot();
+
+  /// Returns a new AppSettings with [p]'s slot replaced by [slot]. Other
+  /// slots are untouched.
+  AppSettings withSlot(AIProvider p, ProviderSlot slot) {
+    final next = Map<AIProvider, ProviderSlot>.from(aiSlotsByProvider);
+    next[p] = slot;
+    return copyWith(aiSlotsByProvider: next);
+  }
+
   AppSettings copyWith({
     AIProvider? aiProvider,
-    String? aiApiKey,
-    String? aiBaseUrl,
-    String? aiModel,
+    Map<AIProvider, ProviderSlot>? aiSlotsByProvider,
     bool? allowRemoteAI,
     bool? anonymizeBalances,
     bool? autoCaptureEnabled,
@@ -56,9 +101,7 @@ class AppSettings {
   }) =>
       AppSettings(
         aiProvider: aiProvider ?? this.aiProvider,
-        aiApiKey: aiApiKey ?? this.aiApiKey,
-        aiBaseUrl: aiBaseUrl ?? this.aiBaseUrl,
-        aiModel: aiModel ?? this.aiModel,
+        aiSlotsByProvider: aiSlotsByProvider ?? this.aiSlotsByProvider,
         allowRemoteAI: allowRemoteAI ?? this.allowRemoteAI,
         anonymizeBalances: anonymizeBalances ?? this.anonymizeBalances,
         autoCaptureEnabled: autoCaptureEnabled ?? this.autoCaptureEnabled,

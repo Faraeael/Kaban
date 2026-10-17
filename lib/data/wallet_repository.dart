@@ -26,11 +26,17 @@ class WalletRepository {
 
   Future<Wallet?> findByPackage(String packageName) async {
     final db = await _appDb.db;
-    final rows = await db.query('wallets', limit: 1000);
+    final rows = await db.query(
+      'wallets',
+      where: 'archived = 0',
+      limit: 1000,
+    );
     for (final row in rows) {
       final wallet = Wallet.fromMap(row);
       final preset = kWalletPresets.firstWhere(
-        (p) => p.name == wallet.name,
+        (p) =>
+            p.name.toLowerCase() == wallet.name.toLowerCase() ||
+            (p.logoAsset.isNotEmpty && p.logoAsset == wallet.logoAsset),
         orElse: () => const WalletPreset(
           name: '',
           type: WalletType.cash,

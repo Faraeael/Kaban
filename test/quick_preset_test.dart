@@ -1,4 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:finance_tracker/screens/dashboard/widgets/quick_log_card.dart';
 import 'package:finance_tracker/models/debt.dart';
 import 'package:finance_tracker/models/quick_preset.dart';
 import 'package:finance_tracker/services/coach_actions.dart';
@@ -142,6 +145,49 @@ void main() {
       expect(validated.debt.balance, equals(45210.0));
       expect(validated.debt.minPayment, equals(3500.0));
       expect(validated.debt.dueDay, equals(25));
+    });
+  });
+
+  group('QuickLogCard Presets & Decimal Preservation', () {
+    testWidgets('EditPresetSheet preserves decimal amount when editing a preset',
+        (tester) async {
+      const decimalPreset = QuickPreset(
+        id: 'p-custom',
+        icon: '☕',
+        label: 'Coffee',
+        amount: 84.50,
+        category: 'Food',
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (_) =>
+                          const PresetEditSheet(preset: decimalPreset),
+                    );
+                  },
+                  child: const Text('Open Sheet'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Open Sheet'));
+      await tester.pumpAndSettle();
+
+      // Check that the amount TextField has '84.50', not truncated '84'
+      final amountField = find.widgetWithText(TextField, '84.50');
+      expect(amountField, findsOneWidget);
     });
   });
 }
