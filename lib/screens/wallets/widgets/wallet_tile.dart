@@ -171,9 +171,10 @@ class WalletTile extends StatelessWidget {
               if (maskedNumber != null ||
                   (holderName != null && holderName.isNotEmpty) ||
                   wallet.type != WalletType.cash) ...[
-                const SizedBox(height: 12),
-                // Account Number & Copy Row
+                const SizedBox(height: 10),
+                // Account Number & Action Row
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(
                       child: Text(
@@ -183,11 +184,11 @@ class WalletTile extends StatelessWidget {
                                 : maskedNumber)
                             : 'Tap card to add account details',
                         style: TextStyle(
-                          fontSize: maskedNumber != null ? 15 : 12,
+                          fontSize: maskedNumber != null ? 14 : 12,
                           fontWeight: maskedNumber != null
                               ? FontWeight.w700
                               : FontWeight.w500,
-                          letterSpacing: maskedNumber != null ? 1.8 : 0,
+                          letterSpacing: maskedNumber != null ? 1.2 : 0,
                           fontFeatures: const [FontFeature.tabularFigures()],
                           color: maskedNumber != null
                               ? t.colorScheme.onSurface
@@ -197,6 +198,7 @@ class WalletTile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: 8),
                     if (wallet.hasQrImage &&
                         !obscureBalance &&
                         onShowQr != null) ...[

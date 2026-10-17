@@ -1024,9 +1024,10 @@ class _EditWalletSheetState extends State<_EditWalletSheet> {
             ),
             const SizedBox(height: 12),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  flex: 3,
+                  flex: 11,
                   child: TextField(
                     controller: _name,
                     onChanged: (_) => setState(() {}),
@@ -1035,12 +1036,12 @@ class _EditWalletSheetState extends State<_EditWalletSheet> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  flex: 2,
+                  flex: 9,
                   child: TextField(
                     controller: _balance,
                     onChanged: (_) => setState(() {}),
                     decoration: const InputDecoration(
-                      labelText: 'Starting balance',
+                      labelText: 'Start balance',
                       prefixText: '₱ ',
                     ),
                     keyboardType:
@@ -1082,26 +1083,27 @@ class _EditWalletSheetState extends State<_EditWalletSheet> {
               ),
               const SizedBox(height: 10),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    flex: 3,
+                    flex: 11,
                     child: TextField(
                       controller: _accountName,
                       onChanged: (_) => setState(() {}),
                       decoration: const InputDecoration(
-                        labelText: 'Account holder name',
+                        labelText: 'Account holder',
                         hintText: 'e.g. Juan Dela Cruz',
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    flex: 2,
+                    flex: 9,
                     child: TextField(
                       controller: _accountLabel,
                       onChanged: (_) => setState(() {}),
                       decoration: const InputDecoration(
-                        labelText: 'Subtype / Label',
+                        labelText: 'Subtype / Type',
                         hintText: 'e.g. Savings',
                       ),
                     ),
@@ -1252,24 +1254,35 @@ class _EditWalletSheetState extends State<_EditWalletSheet> {
               children: [
                 if (widget.onDelete != null && !widget.isNew) ...[
                   Expanded(
+                    flex: 1,
                     child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
-                          foregroundColor: t.colorScheme.error),
+                        foregroundColor: t.colorScheme.error,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
                       onPressed: widget.onDelete,
                       child: const Text('Delete'),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                 ],
                 Expanded(
+                  flex: 1,
                   child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                     onPressed: () => Navigator.pop(context),
                     child: const Text('Cancel'),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
+                  flex: 1,
                   child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                     onPressed: () {
                       final name = _name.text.trim();
                       if (name.isEmpty && widget.wallet.name.isEmpty) {
@@ -1281,7 +1294,11 @@ class _EditWalletSheetState extends State<_EditWalletSheet> {
                       }
                       widget.onSave(_previewWallet());
                     },
-                    child: const Text('Save Card'),
+                    child: const Text(
+                      'Save',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
               ],
