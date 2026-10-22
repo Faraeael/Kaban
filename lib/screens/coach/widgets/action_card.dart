@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../models/debt.dart';
 import '../../../models/wallet.dart';
+import '../../../models/salary_plan.dart';
 import '../../../services/coach_actions.dart';
 import '../../../utils/formatters.dart';
 import '../../wallets/widgets/wallet_tile.dart';
@@ -138,6 +139,11 @@ class ActionCard extends StatelessWidget {
           Icons.delete_outline_rounded,
           'Delete budget',
           'Remove budget cap for "${a.category}"',
+        ),
+      UpdateSalaryPlanAction a => (
+          Icons.payments_rounded,
+          'Update salary plan',
+          'Basic salary: ${pesoExact(a.basicSalary)} · ${a.payFrequency == PayFrequency.biMonthly15_30 ? "15th & 30th (Quincena)" : "Monthly"}${a.allowances != null && a.allowances! > 0 ? " · allowances ${pesoExact(a.allowances!)}" : ""}',
         ),
     };
 
@@ -293,6 +299,8 @@ class ActionCard extends StatelessWidget {
                     UpdateGoalAction _ ||
                     UpdateRecurringAction _ =>
                       ('Update', false, Icons.check_rounded),
+                    UpdateSalaryPlanAction _ =>
+                      ('Save plan', false, Icons.check_rounded),
                     _ => ('Add', false, Icons.check_rounded),
                   };
 

@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../coach_actions.dart';
 import 'ai_provider_config.dart';
 import 'coach_service.dart';
+import '../../models/salary_plan.dart';
 
 /// Talks to any remote AI provider. Branches on `config.responseShape`:
 /// - `openaiChat` (CommandCode, OpenRouter, OpenCode): /chat/completions with
@@ -63,6 +64,17 @@ class RemoteCoach implements CoachService {
         : snapshot.subscriptions
             .map((s) => '  - ${s.name}: ${_round(s.amount)} (${s.cadence}, ${s.category})')
             .join('\n');
+    final salaryText = snapshot.salaryPlan == null
+        ? '  (Not configured yet. User can configure basic salary and statutory deductions.)'
+        : '''  - Monthly Basic Salary: ${_round(snapshot.salaryPlan!.effectiveMonthlyBasic)}${snapshot.salaryPlan!.rateType == SalaryRateType.daily && snapshot.salaryPlan!.dailyRate != null ? ' (Daily rate: ${_round(snapshot.salaryPlan!.dailyRate!)} × ${snapshot.salaryPlan!.workDaysPerMonth ?? 22} days)' : ''}
+  - Pay Frequency: ${snapshot.salaryPlan!.payFrequency == PayFrequency.biMonthly15_30 ? 'Bi-Monthly (15th & 30th Quincena)' : 'Monthly'}
+  - Allowances: ${_round(snapshot.salaryPlan!.allowances)}
+  - Net Monthly Take-Home: ${_round(snapshot.salaryPlan!.computeBreakdown().netMonthlyIncome)}
+${snapshot.currentPaycheckWindow != null ? '''  - Current Funding Cycle: ${snapshot.currentPaycheckWindow!.label}
+  - Net Income This Payday: ${_round(snapshot.currentPaycheckWindow!.netIncomeThisPayday)}
+  - Total Debt Due This Payday: ${_round(snapshot.currentPaycheckWindow!.totalDebtDue)}
+  - Recurring Bills Due: ${_round(snapshot.currentPaycheckWindow!.totalBillsDue)}
+  - Safe to Spend: ${_round(snapshot.currentPaycheckWindow!.safeToSpend)}''' : ''}''';
     if (!useActionSchema) {
       return '''You are a personal finance coach for a Filipino user. The data below has been anonymized — wallet names are general categories, no merchant names, no personal notes. ${anonymizeBalances ? 'All amounts are rounded to the nearest ₱100.' : 'Amounts are exact.'}
 
@@ -88,6 +100,9 @@ $budgetLines
 
 ## Active Subscriptions
 $subLines
+
+## Salary & Paycheck Plan
+$salaryText
 
 ''';
     }
@@ -124,6 +139,7 @@ Action types and field schemas:
 - create_budget: { "type": "create_budget", "category": string, "monthly_limit": number }
 - update_budget: { "type": "update_budget", "category": string, "new_category"?: string, "new_monthly_limit"?: number }
 - delete_budget: { "type": "delete_budget", "category": string }
+- update_salary_plan: { "type": "update_salary_plan", "basic_salary": number, "pay_frequency": "monthly"|"biMonthly15_30", "allowances"?: number }
 Strict rules:
 - YOUR CAPABILITIES & SKILLS: You are Kaban's AI Financial Coach with real in-app action card capabilities. When the user asks what you can do, what your skills are, or how to use the coach:
   1. Clearly state that you can actively manage their finances through interactive action cards: log expenses (commute fares, dining, shopping, bills) and income, create new wallets and adjust balances, set up and pay down debts, create savings goals, and track recurring expenses.
@@ -200,6 +216,9 @@ $budgetLines
 
 ## Active Subscriptions
 $subLines
+
+## Salary & Paycheck Plan
+$salaryText
 
 ''';
   }

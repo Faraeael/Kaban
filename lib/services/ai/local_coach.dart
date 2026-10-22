@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../coach_actions.dart';
 import 'coach_service.dart';
 import '../../utils/formatters.dart';
+import '../../models/salary_plan.dart';
 /// On-device coach. Rule-based but with intent scoring so the same question
 /// always picks the best handler, and so a question that doesn't match any
 /// pattern falls through to a *specific* suggestion based on the user's
@@ -26,6 +27,20 @@ class LocalCoach implements CoachService {
     void match(_Intent intent) {
       if (intent.matches(lower)) scored.add(intent);
     }
+    match(_Intent('salaryPaycheck', 4, () => _salaryPaycheck(snapshot),
+        keywords: [
+          'salary',
+          'paycheck',
+          'safe to spend',
+          'how much can i spend',
+          'quincena',
+          'next pay',
+          'take home',
+          'take-home',
+          'daily rate',
+          'arawan',
+          'rate per day',
+        ]));
 
     match(_Intent('overspend', 2, () => _overspend(snapshot),
         required: ['over', 'spend']));
@@ -112,6 +127,9 @@ class LocalCoach implements CoachService {
   List<String> suggestedPrompts(FinanceSnapshot snapshot) {
     final prompts = <String>[];
     prompts.add('Paid ₱15 jeep fare');
+    if (snapshot.salaryPlan != null) {
+      prompts.add('How much is safe to spend this payday?');
+    }
     if (snapshot.debts.isNotEmpty) {
       prompts.add('What should I pay first?');
     }
@@ -132,6 +150,36 @@ class LocalCoach implements CoachService {
   }
 
   // ---------------- handlers ----------------
+  String _salaryPaycheck(FinanceSnapshot snapshot) {
+    final plan = snapshot.salaryPlan;
+    if (plan == null) {
+      return 'You have not set up your salary plan yet. Open your Dashboard and configure your salary and statutory deductions (SSS, PhilHealth, Pag-IBIG, tax) to view your take-home pay and safe-to-spend amount per payday.';
+    }
+    final breakdown = plan.computeBreakdown();
+    final win = snapshot.currentPaycheckWindow;
+
+    final buffer = StringBuffer();
+    buffer.writeln('**Salary & Paycheck Breakdown:**');
+    if (plan.rateType == SalaryRateType.daily && plan.dailyRate != null) {
+      buffer.writeln('• Daily rate: ${_peso(plan.dailyRate!)} (${plan.workDaysPerMonth ?? 22} workdays/mo)');
+      buffer.writeln('• Monthly basic equivalent: ${_peso(plan.effectiveMonthlyBasic)} (Deductions: ${_peso(breakdown.totalDeductions)})');
+    } else {
+      buffer.writeln('• Monthly basic: ${_peso(plan.basicSalary)} (Deductions: ${_peso(breakdown.totalDeductions)})');
+    }
+    buffer.writeln('• Net monthly take-home: **${_peso(breakdown.netMonthlyIncome)}**');
+    if (win != null) {
+      buffer.writeln('• **${win.label}**: ${_peso(win.netIncomeThisPayday)} net pay');
+      if (win.totalDebtDue > 0) {
+        buffer.writeln('• Debt due this cutoff: ${_peso(win.totalDebtDue)}');
+      }
+      if (win.totalBillsDue > 0) {
+        buffer.writeln('• Recurring bills due: ${_peso(win.totalBillsDue)}');
+      }
+      buffer.writeln('• **Safe to Spend**: ${_peso(win.safeToSpend)}');
+    }
+    return buffer.toString().trim();
+  }
+
 
   String _overspend(FinanceSnapshot snapshot) {
     if (snapshot.budgets.isNotEmpty) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/debt.dart';
+import '../models/salary_plan.dart';
 import '../services/ai/ai_provider_config.dart';
 
 /// Per-provider credential + endpoint override. The `Local` slot is always
@@ -55,6 +56,7 @@ class AppSettings {
   final bool autoRecurring;
   final bool privacyMode;
   final bool autoBackupOnLaunch;
+  final SalaryPlan? salaryPlan;
 
   const AppSettings({
     this.aiProvider = AIProvider.local,
@@ -70,6 +72,7 @@ class AppSettings {
     this.autoRecurring = true,
     this.privacyMode = false,
     this.autoBackupOnLaunch = false,
+    this.salaryPlan,
   });
 
   /// Returns the saved slot for [p], or an empty slot if nothing was stored.
@@ -98,6 +101,8 @@ class AppSettings {
     bool? autoRecurring,
     bool? privacyMode,
     bool? autoBackupOnLaunch,
+    SalaryPlan? salaryPlan,
+    bool clearSalaryPlan = false,
   }) =>
       AppSettings(
         aiProvider: aiProvider ?? this.aiProvider,
@@ -113,5 +118,6 @@ class AppSettings {
         autoRecurring: autoRecurring ?? this.autoRecurring,
         privacyMode: privacyMode ?? this.privacyMode,
         autoBackupOnLaunch: autoBackupOnLaunch ?? this.autoBackupOnLaunch,
+        salaryPlan: clearSalaryPlan ? null : (salaryPlan ?? this.salaryPlan),
       );
 }

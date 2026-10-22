@@ -5,6 +5,7 @@ import '../models/goal.dart';
 import '../models/recurring_transaction.dart';
 import '../models/transaction.dart';
 import '../models/wallet.dart';
+import '../models/salary_plan.dart';
 
 const _uuid = Uuid();
 
@@ -61,6 +62,30 @@ class CreateRecurringAction extends CoachAction {
   final RecurringTransaction recurring;
   const CreateRecurringAction(this.recurring);
 }
+class UpdateSalaryPlanAction extends CoachAction {
+  final double basicSalary;
+  final PayFrequency payFrequency;
+  final double? allowances;
+
+  const UpdateSalaryPlanAction({
+    required this.basicSalary,
+    required this.payFrequency,
+    this.allowances,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UpdateSalaryPlanAction &&
+          runtimeType == other.runtimeType &&
+          basicSalary == other.basicSalary &&
+          payFrequency == other.payFrequency &&
+          allowances == other.allowances;
+
+  @override
+  int get hashCode => Object.hash(basicSalary, payFrequency, allowances);
+}
+
 
 /// Result of the coach recognizing "I want to track a wallet".
 class CreateWalletAction extends CoachAction {
@@ -322,6 +347,12 @@ Map<String, dynamic> actionToJsonMap(CoachAction action) {
     DeleteBudgetAction a => {
         'type': 'delete_budget',
         'category': a.category,
+      },
+    UpdateSalaryPlanAction a => {
+        'type': 'update_salary_plan',
+        'basic_salary': a.basicSalary,
+        'pay_frequency': a.payFrequency.name,
+        if (a.allowances != null) 'allowances': a.allowances,
       },
   };
 }
@@ -1439,6 +1470,19 @@ CoachAction? parseJsonAction(Map<String, dynamic> m) {
             (m['category'] ?? m['category_name'])?.toString().trim();
         if (rawCat == null || rawCat.isEmpty) return null;
         return DeleteBudgetAction(category: rawCat);
+      case 'update_salary_plan':
+      case 'set_salary_plan':
+        final basic = _toDouble(
+            m['basic_salary'] ?? m['basicSalary'] ?? m['salary'] ?? m['amount']);
+        if (basic == null || basic <= 0) return null;
+        final freqRaw = (m['pay_frequency'] ?? m['payFrequency'] ?? m['frequency'])?.toString();
+        final freq = freqRaw == 'monthly' ? PayFrequency.monthly : PayFrequency.biMonthly15_30;
+        final allowances = _toDouble(m['allowances']);
+        return UpdateSalaryPlanAction(
+          basicSalary: basic,
+          payFrequency: freq,
+          allowances: allowances,
+        );
       default:
         return null;
     }
@@ -1578,6 +1622,8 @@ List<double> extractAmounts(String text) {
           if (a.newAmount != null && a.newAmount! > 0) {
             actionAmount = a.newAmount;
           }
+        case UpdateSalaryPlanAction a:
+          actionAmount = a.basicSalary;
         default:
           actionAmount = null;
       }

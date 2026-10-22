@@ -15,6 +15,8 @@ import '../../models/goal.dart';
 import '../../models/transaction.dart';
 import '../../models/subscription.dart';
 import '../../models/wallet.dart';
+import '../../models/salary_plan.dart';
+import '../../services/paycheck_planner.dart';
 import '../../services/ai/ai_provider_config.dart';
 import '../../services/ai/coach_service.dart';
 import '../../services/ai/remote_coach.dart';
@@ -202,6 +204,15 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     final subsList = ref.read(subscriptionListProvider);
     final budgetMap = {for (final b in budgetsList) b.category: b.monthlyLimit};
 
+    final recurring = ref.read(recurringListProvider);
+    final salaryPlan = settings.salaryPlan;
+    final paycheckWindow = salaryPlan != null
+        ? PaycheckPlanner.calculateFundingWindow(
+            salaryPlan: salaryPlan,
+            debts: debts,
+            recurring: recurring,
+          )
+        : null;
     return FinanceSnapshot(
       walletBalances: walletNameBalances,
       totalDebt: debts.fold(0, (s, d) => s + (d.paidOff ? 0 : d.balance)),
@@ -241,6 +252,8 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
           'Enable "Allow remote AI" in Settings for richer answers.',
       ],
       remoteConfigured: settings.aiProvider != AIProvider.local,
+      salaryPlan: salaryPlan,
+      currentPaycheckWindow: paycheckWindow,
     );
   }
 
@@ -783,6 +796,23 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
             walletId: target.id,
           );
           await ref.read(transactionListProvider.notifier).add(txn);
+        case UpdateSalaryPlanAction a:
+          final current = ref.read(settingsProvider);
+          final updatedPlan = SalaryPlan(
+            basicSalary: a.basicSalary,
+            payFrequency: a.payFrequency,
+            allowances: a.allowances ?? (current.salaryPlan?.allowances ?? 0.0),
+            autoCalculateDeductions:
+                current.salaryPlan?.autoCalculateDeductions ?? true,
+            customSss: current.salaryPlan?.customSss,
+            customPhilHealth: current.salaryPlan?.customPhilHealth,
+            customPagIbig: current.salaryPlan?.customPagIbig,
+            customTax: current.salaryPlan?.customTax,
+            otherDeductions: current.salaryPlan?.otherDeductions,
+          );
+          await ref.read(settingsProvider.notifier).update(
+                current.copyWith(salaryPlan: updatedPlan),
+              );
       }
 
       await ref.read(walletListProvider.notifier).load();
@@ -802,6 +832,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
           UpdateGoalAction _ ||
           UpdateRecurringAction _ =>
             'Updated.',
+          UpdateSalaryPlanAction _ => 'Salary plan updated.',
           _ => 'Added.',
         };
         ScaffoldMessenger.of(context).showSnackBar(

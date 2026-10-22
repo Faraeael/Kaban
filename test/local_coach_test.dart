@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:finance_tracker/services/ai/coach_service.dart';
 import 'package:finance_tracker/services/ai/local_coach.dart';
 
+import 'package:finance_tracker/models/salary_plan.dart';
+import 'package:finance_tracker/services/paycheck_planner.dart';
 FinanceSnapshot _snap({
   Map<String, double>? wallets,
   Map<String, double>? byCategory,
@@ -10,6 +12,8 @@ FinanceSnapshot _snap({
   double totalDebt = 0,
   List<DebtSnapshot>? debts,
   bool remoteConfigured = false,
+  SalaryPlan? salaryPlan,
+  PaycheckFundingWindow? currentPaycheckWindow,
 }) {
   return FinanceSnapshot(
     walletBalances: wallets ?? const {},
@@ -20,6 +24,8 @@ FinanceSnapshot _snap({
     debts: debts ?? const [],
     suggestions: const [],
     remoteConfigured: remoteConfigured,
+    salaryPlan: salaryPlan,
+    currentPaycheckWindow: currentPaycheckWindow,
   );
 }
 
@@ -112,6 +118,28 @@ void main() {
       final snap = _snap(wallets: {'Maya': 1000}, income: 10000, expense: 5000);
       final p = coach.suggestedPrompts(snap);
       expect(p.any((q) => q.toLowerCase().contains('savings rate')), isTrue);
+    });
+    test('salary query informs user to configure when unconfigured', () async {
+      final snap = _snap();
+      final r = (await coach.ask('how much is my safe to spend', snap)).text;
+      expect(r.toLowerCase(), contains('not set up your salary plan'));
+    });
+
+    test('salary query returns take-home and safe-to-spend when configured', () async {
+      const plan = SalaryPlan(
+        basicSalary: 60000,
+        payFrequency: PayFrequency.biMonthly15_30,
+      );
+      final window = PaycheckPlanner.calculateFundingWindow(
+        salaryPlan: plan,
+        debts: const [],
+        recurring: const [],
+        asOf: DateTime(2025, 10, 10),
+      );
+      final snap = _snap(salaryPlan: plan, currentPaycheckWindow: window);
+      final r = (await coach.ask('how much can i spend this paycheck', snap)).text;
+      expect(r, contains('Salary & Paycheck Breakdown'));
+      expect(r, contains('Safe to Spend'));
     });
   });
 }

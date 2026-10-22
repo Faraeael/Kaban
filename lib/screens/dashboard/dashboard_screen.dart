@@ -8,6 +8,7 @@ import '../../utils/formatters.dart';
 import 'widgets/charts.dart';
 import 'widgets/debt_progress.dart';
 import 'widgets/insight_banner.dart';
+import 'widgets/paycheck_card.dart';
 import 'widgets/quick_log_card.dart';
 import 'widgets/summary_card.dart';
 import 'widgets/wallet_balance_card.dart';
@@ -30,6 +31,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ref.read(goalListProvider.notifier).load();
       ref.read(budgetListProvider.notifier).load();
       ref.read(subscriptionListProvider.notifier).load();
+      ref.read(recurringListProvider.notifier).load();
       final settings = ref.read(settingsProvider);
       if (settings.autoBackupOnLaunch) {
         ref.read(backupServiceProvider).autoBackup();
@@ -85,6 +87,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ref.read(walletListProvider.notifier).load(),
             ref.read(transactionListProvider.notifier).load(),
             ref.read(debtListProvider.notifier).load(),
+            ref.read(recurringListProvider.notifier).load(),
           ]);
         },
         child: LayoutBuilder(
@@ -266,6 +269,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             const SizedBox(height: 14),
                             const _QuickActionStrip(),
                             const SizedBox(height: 14),
+                            const PaycheckCard(),
+                            const SizedBox(height: 14),
                             const QuickLogCard(),
                             if (walletsSection != null) ...[
                               const SizedBox(height: 14),
@@ -306,6 +311,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ],
                 const SizedBox(height: 14),
                 const _QuickActionStrip(),
+                const SizedBox(height: 14),
+                const PaycheckCard(),
                 const SizedBox(height: 14),
                 const QuickLogCard(),
                 if (walletsSection != null) ...[

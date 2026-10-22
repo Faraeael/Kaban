@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_settings.dart';
+import '../models/salary_plan.dart';
 import '../services/ai/ai_provider_config.dart';
 import '../models/debt.dart';
 
@@ -50,6 +51,9 @@ class SettingsService {
         autoRecurring: m['autoRecurring'] as bool? ?? true,
         privacyMode: m['privacyMode'] as bool? ?? false,
         autoBackupOnLaunch: m['autoBackupOnLaunch'] as bool? ?? false,
+        salaryPlan: m['salaryPlan'] != null && m['salaryPlan'] is Map
+            ? SalaryPlan.fromJson(Map<String, dynamic>.from(m['salaryPlan'] as Map))
+            : null,
       );
     } catch (_) {
       return const AppSettings();
@@ -75,6 +79,7 @@ class SettingsService {
       'autoRecurring': s.autoRecurring,
       'privacyMode': s.privacyMode,
       'autoBackupOnLaunch': s.autoBackupOnLaunch,
+      if (s.salaryPlan != null) 'salaryPlan': s.salaryPlan!.toJson(),
     };
     await prefs.setString(_key, json.encode(m));
   }

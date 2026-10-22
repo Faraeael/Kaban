@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import '../coach_actions.dart';
+import '../../models/salary_plan.dart';
+import '../paycheck_planner.dart';
 
 class CoachReply {
   final String text;
@@ -25,6 +27,8 @@ class FinanceSnapshot {
   final List<SubscriptionSnapshot> subscriptions;
   final List<String> suggestions;
   final bool remoteConfigured;
+  final SalaryPlan? salaryPlan;
+  final PaycheckFundingWindow? currentPaycheckWindow;
 
   const FinanceSnapshot({
     required this.walletBalances,
@@ -37,6 +41,8 @@ class FinanceSnapshot {
     this.subscriptions = const [],
     required this.suggestions,
     this.remoteConfigured = false,
+    this.salaryPlan,
+    this.currentPaycheckWindow,
   });
 }
 

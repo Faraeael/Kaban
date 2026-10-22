@@ -5,6 +5,7 @@ import 'package:finance_tracker/data/database.dart';
 import 'package:finance_tracker/models/app_settings.dart';
 import 'package:finance_tracker/models/chat_message.dart';
 import 'package:finance_tracker/services/ai/ai_provider_config.dart';
+import 'package:finance_tracker/models/salary_plan.dart';
 import 'package:finance_tracker/services/ai/coach_service.dart';
 import 'package:finance_tracker/services/ai/remote_coach.dart';
 import 'package:finance_tracker/services/coach_actions.dart';
@@ -216,6 +217,27 @@ void main() {
       expect(prompt, contains('Netflix: ₱549.00 (Monthly, Subscriptions)'));
       expect(prompt, contains('create_budget'));
     });
+    test('RemoteCoach system prompt includes salary plan and update_salary_plan schema', () {
+      const snap = FinanceSnapshot(
+        walletBalances: {'BDO': 20000},
+        totalDebt: 5000,
+        monthIncome: 45000,
+        monthExpense: 22000,
+        monthExpenseByCategory: {},
+        debts: [],
+        suggestions: [],
+        salaryPlan: SalaryPlan(
+          basicSalary: 75000,
+          payFrequency: PayFrequency.biMonthly15_30,
+        ),
+      );
+
+      final prompt = coach.systemPromptForTesting(snap);
+      expect(prompt, contains('## Salary & Paycheck Plan'));
+      expect(prompt, contains('Monthly Basic Salary: ₱75000.00'));
+      expect(prompt, contains('update_salary_plan'));
+    });
+
 
     test(
         'coachServiceProvider hydrates SQLite chat_messages with JSON actions and produces cards on follow-up turns without context reset',
