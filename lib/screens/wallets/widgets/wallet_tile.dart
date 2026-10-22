@@ -36,6 +36,12 @@ class WalletTile extends StatelessWidget {
         (wallet.accountLabel != null && wallet.accountLabel!.trim().isNotEmpty)
             ? wallet.accountLabel!.trim().toUpperCase()
             : wallet.type.label.toUpperCase();
+    final hasQr = wallet.hasQrImage && !obscureBalance && onShowQr != null;
+    final canCopy = wallet.canCopyDetails && !obscureBalance;
+    final hasActions = hasQr || canCopy;
+    final hasAccountLabel = wallet.accountLabel != null &&
+        wallet.accountLabel!.trim().isNotEmpty;
+    final hasHolder = holderName != null && holderName.isNotEmpty;
 
     return Semantics(
       label:
@@ -172,151 +178,146 @@ class WalletTile extends StatelessWidget {
                   (holderName != null && holderName.isNotEmpty) ||
                   wallet.type != WalletType.cash) ...[
                 const SizedBox(height: 10),
-                // Account Number & Action Row
+                // Account Number Row (full width so digits never truncate)
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(
-                      child: Text(
-                        maskedNumber != null
-                            ? (obscureBalance
-                                ? '••••  ••••  ••••'
-                                : maskedNumber)
-                            : 'Tap card to add account details',
-                        style: TextStyle(
-                          fontSize: maskedNumber != null ? 14 : 12,
-                          fontWeight: maskedNumber != null
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          letterSpacing: maskedNumber != null ? 1.2 : 0,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                          color: maskedNumber != null
-                              ? t.colorScheme.onSurface
-                              : t.colorScheme.onSurfaceVariant,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          maskedNumber != null
+                              ? (obscureBalance
+                                  ? '••••  ••••  ••••'
+                                  : maskedNumber)
+                              : 'Tap card to add account details',
+                          style: TextStyle(
+                            fontSize: maskedNumber != null ? 15 : 12,
+                            fontWeight: maskedNumber != null
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            letterSpacing: maskedNumber != null ? 1.5 : 0,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                            color: maskedNumber != null
+                                ? t.colorScheme.onSurface
+                                : t.colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    if (wallet.hasQrImage &&
-                        !obscureBalance &&
-                        onShowQr != null) ...[
-                      Semantics(
-                        button: true,
-                        label: 'Show ${wallet.name} QR code',
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(8),
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            onShowQr!();
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: t.colorScheme.primary,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.qr_code_2_rounded,
-                                  size: 14,
-                                  color: t.colorScheme.onPrimary,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'QR',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: t.colorScheme.onPrimary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (wallet.canCopyDetails) const SizedBox(width: 6),
-                    ],
-                    if (wallet.canCopyDetails && !obscureBalance)
-                      Semantics(
-                        button: true,
-                        label: 'Copy ${wallet.name} account details',
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(8),
-                          onTap: () async {
-                            HapticFeedback.selectionClick();
-                            await Clipboard.setData(
-                              ClipboardData(text: wallet.copyableDetails),
-                            );
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context)
-                                  .hideCurrentSnackBar();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                      'Copied ${wallet.name} details to clipboard'),
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: t.colorScheme.surface,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: t.colorScheme.primary
-                                    .withValues(alpha: 0.5),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.copy_rounded,
-                                  size: 13,
-                                  color: t.colorScheme.primary,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Copy',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: t.colorScheme.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ],
 
-              if ((holderName != null && holderName.isNotEmpty) ||
-                  (wallet.accountLabel != null &&
-                      wallet.accountLabel!.trim().isNotEmpty)) ...[
+
+              if (hasHolder || hasAccountLabel || hasActions) ...[
                 const SizedBox(height: 12),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    if (hasHolder || hasAccountLabel)
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (hasHolder) ...[
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      wallet.type == WalletType.ewallet
+                                          ? 'REGISTERED NAME'
+                                          : 'ACCOUNT HOLDER',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 0.6,
+                                        color: t.colorScheme.onSurfaceVariant,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (hasAccountLabel) ...[
+                                    Text(
+                                      ' · ',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        color: t.colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    Flexible(
+                                      child: Text(
+                                        wallet.accountLabel!.trim().toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.6,
+                                          color: t.colorScheme.primary,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                obscureBalance
+                                    ? '••••••••'
+                                    : holderName.toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.4,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ] else if (hasAccountLabel) ...[
+                              Text(
+                                'ACCOUNT LABEL',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.6,
+                                  color: t.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                wallet.accountLabel!.trim().toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.4,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ],
+                        ),
+                      )
+                    else
+                      const Spacer(),
+                    if (hasActions) ...[
+                      const SizedBox(width: 6),
+                      if (hasQr) ...[
+                        _buildQrButton(context, t),
+                        if (canCopy) const SizedBox(width: 5),
+                      ],
+                      if (canCopy)
+                        _buildCopyButton(context, t),
+                    ] else ...[
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            wallet.type == WalletType.ewallet
-                                ? 'REGISTERED NAME'
-                                : 'ACCOUNT HOLDER',
+                            'TYPE',
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w600,
@@ -326,49 +327,112 @@ class WalletTile extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            obscureBalance
-                                ? '••••••••'
-                                : (holderName != null && holderName.isNotEmpty
-                                    ? holderName.toUpperCase()
-                                    : '—'),
+                            subtypeLabel,
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.4,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'TYPE',
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.6,
-                            color: t.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          subtypeLabel,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.4,
-                          ),
-                        ),
-                      ],
-                    ),
+                    ],
                   ],
                 ),
               ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  Widget _buildQrButton(BuildContext context, ThemeData t) {
+    return Semantics(
+      button: true,
+      label: 'Show ${wallet.name} QR code',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onShowQr!();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: t.colorScheme.primary,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.qr_code_2_rounded,
+                size: 14,
+                color: t.colorScheme.onPrimary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'QR',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: t.colorScheme.onPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCopyButton(BuildContext context, ThemeData t) {
+    return Semantics(
+      button: true,
+      label: 'Copy ${wallet.name} account details',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () async {
+          HapticFeedback.selectionClick();
+          await Clipboard.setData(
+            ClipboardData(text: wallet.copyableDetails),
+          );
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Copied ${wallet.name} details to clipboard'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: t.colorScheme.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: t.colorScheme.primary.withValues(alpha: 0.5),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.copy_rounded,
+                size: 13,
+                color: t.colorScheme.primary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Copy',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: t.colorScheme.primary,
+                ),
+              ),
             ],
           ),
         ),

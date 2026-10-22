@@ -393,6 +393,54 @@ void main() {
       expect(find.text('QR'), findsNothing);
     });
 
+    testWidgets(
+        'WalletTile at 360px viewport renders full masked account number without truncation alongside QR and Copy buttons',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      const maribank = Wallet(
+        id: 'w-mari',
+        name: 'Maribank',
+        type: WalletType.bank,
+        startingBalance: 200,
+        colorValue: 0xFFF97316,
+        logoAsset: 'assets/logos/maribank.svg',
+        accountNumber: '123456786789',
+        accountName: 'Michael Talatala',
+        accountLabel: 'High Yield Savings Payroll Account',
+        qrImagePath: '/tmp/mari_qr.png',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Padding(
+              padding: const EdgeInsets.all(16),
+              child: WalletTile(
+                wallet: maribank,
+                balance: 200,
+                obscureBalance: false,
+                onShowQr: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('••••  ••••  6789'), findsOneWidget);
+      expect(find.text('MICHAEL TALATALA'), findsOneWidget);
+      expect(find.text('QR'), findsOneWidget);
+      expect(find.text('HIGH YIELD SAVINGS PAYROLL ACCOUNT'), findsOneWidget);
+      expect(find.text('Copy'), findsOneWidget);
+    });
+
     testWidgets('AddTransactionSheet preserves decimal amount on initial transaction edit',
         (tester) async {
       final txn = Transaction(
